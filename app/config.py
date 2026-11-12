@@ -41,6 +41,12 @@ class Config:
     web_password: str = ""              # empty = no login (LAN-only use)
     allowed_hosts: list[str] = field(default_factory=list)  # empty = any Host header
 
+    # Optional read-only Linksys Velop/Atlas router integration (JNAP)
+    linksys_url: str = ""               # e.g. http://192.168.1.1
+    linksys_username: str = "admin"
+    linksys_password: str = ""
+    router_poll_interval: int = 300
+
     @classmethod
     def from_env(cls):
         return cls(
@@ -66,4 +72,8 @@ class Config:
             web_username=_env("WEB_USERNAME", "admin"),
             web_password=_env("WEB_PASSWORD"),
             allowed_hosts=[h.strip().lower() for h in _env("ALLOWED_HOSTS").split(",") if h.strip()],
+            linksys_url=_env("LINKSYS_URL"),
+            linksys_username=_env("LINKSYS_USERNAME", "admin"),
+            linksys_password=_env("LINKSYS_PASSWORD"),
+            router_poll_interval=max(60, int(_env("ROUTER_POLL_INTERVAL", "300"))),
         )

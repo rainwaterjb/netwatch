@@ -54,6 +54,12 @@
           font-size: 11px; background: var(--free); color: var(--muted); cursor: default; }
   .cell.online { background: rgba(62,207,142,.25); color: var(--text); border: 1px solid rgba(62,207,142,.6); }
   .cell.offline { background: rgba(242,184,75,.15); color: var(--amber); border: 1px solid rgba(242,184,75,.4); }
+  .cell.reserved { background: rgba(167,139,250,.18); color: #c4b5fd; border: 1px solid rgba(167,139,250,.5); }
+  .cell.static-ok { border: 1px dashed rgba(62,207,142,.6); }
+  .chip { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 10px; margin-left: 6px;
+          background: rgba(167,139,250,.18); color: #c4b5fd; vertical-align: 1px; }
+  .chip.warn { background: rgba(242,184,75,.15); color: var(--amber); }
+  .info { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
   .legend { display: flex; gap: 16px; margin: 0 0 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
   .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
   .k-new { color: var(--accent); } .k-online { color: var(--green); } .k-offline { color: var(--red); }
@@ -113,9 +119,13 @@
     <div class="legend">
       <span><i style="background:rgba(62,207,142,.5)"></i>In use (online)</span>
       <span><i style="background:rgba(242,184,75,.4)"></i>Last used by an offline device</span>
+      <span class="rt"><i style="background:rgba(167,139,250,.45)"></i>Reserved on router (device not seen)</span>
       <span><i style="background:var(--free)"></i>Available</span>
+      <span class="rt"><i style="background:var(--free);border:1px dashed rgba(62,207,142,.8)"></i>Available, outside DHCP pool (safe for static IPs)</span>
     </div>
-    <div class="toolbar"><button id="btn-copy-free">Copy available IPs</button></div>
+    <p class="info" id="pool-info"></p>
+    <div class="toolbar"><button id="btn-copy-free">Copy available IPs</button>
+      <button id="btn-copy-static" class="rt">Copy static-safe IPs</button></div>
     <div class="grid" id="ip-grid"></div>
   </section>
 
@@ -140,7 +150,7 @@ function dur(s) {
   if (d) return `${d}d ${h}h`; if (h) return `${h}h ${m}m`; if (m) return `${m}m`; return `${s}s`;
 }
 const ts = t => t ? new Date(t * 1000).toLocaleString() : "–";
-const devName = d => d.nickname || d.hostname || d.vendor || "Unknown device";
+const devName = d => d.nickname || d.router_name || d.hostname || d.vendor || "Unknown device";
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.style.display = "block";
   clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 4000); }
 
@@ -166,7 +176,10 @@ function render() {
   $("#s-online").textContent = st.online; $("#s-known").textContent = st.known;
   $("#s-free").textContent = state.ips.filter(i => i.status === "free").length;
   $("#s-scan").textContent = st.last_scan ? `${dur(st.now - st.last_scan)} ago` : "pending";
-  showErr(st.last_error ? "Last scan failed: " + st.last_error : "");
+  const rt = st.router || {};
+  showErr([st.last_error && "Last scan failed: " + st.last_error,
+           rt.enabled && rt.error && "Router sync failed: " + rt.error].filter(Boolean).join(" · "));
+  document.querySelectorAll(".rt").forEach(e => e.style.display = rt.enabled && rt.dhcp_first ? "" : "none");
   if (state.tab === "devices") renderDevices();
   if (state.tab === "ips") renderIps();
   if (state.tab === "events") renderEvents();
@@ -190,8 +203,10 @@ function renderDevices() {
     <tr class="${d.online ? "" : "off"}">
       <td><span class="dot ${d.online ? "on" : "off"}" title="${d.online ? "Online" : "Offline"}"></span></td>
       <td><div class="name" data-mac="${d.mac}" title="Click to rename">${esc(devName(d))}</div>
-          <div class="sub">${esc([d.nickname && d.hostname, d.vendor].filter(Boolean).join(" · "))}</div></td>
-      <td class="mono">${esc(d.ip)}</td>
+          <div class="sub">${esc([(d.nickname || d.router_name) && d.hostname, d.vendor].filter(Boolean).join(" · "))}</div></td>
+      <td class="mono">${esc(d.ip)}${d.reserved_ip ? (d.reserved_ip === d.ip
+          ? '<span class="chip" title="DHCP reservation on the router">reserved</span>'
+          : `<span class="chip warn" title="Router has a reservation for this device at a different IP">reserved ${esc(d.reserved_ip)}</span>`) : ""}</td>
       <td class="mono hide-sm">${esc(d.mac)}</td>
       <td>${d.online ? `<b>${dur(now - d.online_since)}</b><div class="sub">since ${ts(d.online_since)}</div>`
                      : `Offline<div class="sub">last seen ${ts(d.last_seen)}</div>`}</td>
@@ -206,10 +221,18 @@ function renderDevices() {
 }
 
 function renderIps() {
+  const rt = state.status.router || {};
+  $("#pool-info").textContent = rt.enabled && rt.dhcp_first
+    ? `Router DHCP pool: ${rt.dhcp_first} – ${rt.dhcp_last} · ${rt.reservations} reservation(s) · ` +
+      `${state.ips.filter(i => i.status === "free" && i.in_pool === false).length} free address(es) outside the pool`
+    : "";
   $("#ip-grid").innerHTML = state.ips.map(i => {
-    const tip = i.status === "free" ? `${i.ip} — available`
-      : `${i.ip} — ${i.name || "Unknown"} (${i.mac})${i.status === "offline" ? ", last seen " + ts(i.last_seen) : ""}`;
-    return `<div class="cell ${i.status}" title="${esc(tip)}">.${i.ip.split(".").pop()}</div>`;
+    let tip;
+    if (i.status === "free") tip = `${i.ip} — available` + (i.in_pool === false ? " (outside DHCP pool: safe for a static IP)" : i.in_pool ? " (in DHCP pool)" : "");
+    else if (i.status === "reserved") tip = `${i.ip} — reserved on router for ${i.name || i.mac} (not seen on network)`;
+    else tip = `${i.ip} — ${i.name || "Unknown"}${i.mac ? ` (${i.mac})` : ""}${i.status === "offline" ? ", last seen " + ts(i.last_seen) : ""}${i.reserved ? " · reserved" : ""}`;
+    const cls = [i.status, i.status === "free" && i.in_pool === false ? "static-ok" : ""].join(" ");
+    return `<div class="cell ${cls}" title="${esc(tip)}">.${i.ip.split(".").pop()}</div>`;
   }).join("");
 }
 
@@ -258,10 +281,13 @@ $("#btn-test").onclick = async () => {
   const r = await api("/api/test-notification", { method: "POST", body: JSON.stringify({ phone: st.phone_enabled, email: st.email_enabled }) });
   toast(Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(" · "));
 };
-$("#btn-copy-free").onclick = async () => {
-  const free = state.ips.filter(i => i.status === "free").map(i => i.ip).join("\n");
-  try { await navigator.clipboard.writeText(free); toast("Copied"); } catch { toast("Clipboard not available over plain HTTP"); }
-};
+async function copyIps(filter) {
+  const list = state.ips.filter(filter).map(i => i.ip);
+  try { await navigator.clipboard.writeText(list.join("\n")); toast(`Copied ${list.length} address(es)`); }
+  catch { prompt("Copy these addresses:", list.join(", ")); }
+}
+$("#btn-copy-free").onclick = () => copyIps(i => i.status === "free");
+$("#btn-copy-static").onclick = () => copyIps(i => i.status === "free" && i.in_pool === false);
 
 refresh();
 setInterval(refresh, 10000);

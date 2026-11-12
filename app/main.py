@@ -14,6 +14,7 @@ from .config import Config
 from .db import Store
 from .monitor import Monitor
 from .notifier import Notifier
+from .router_linksys import LinksysRouter
 from .security import SecurityMiddleware
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"),
@@ -22,7 +23,8 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"),
 cfg = Config.from_env()
 store = Store(cfg.db_path)
 notifier = Notifier(cfg)
-monitor = Monitor(cfg, store, notifier)
+router = LinksysRouter(cfg)
+monitor = Monitor(cfg, store, notifier, router=router)
 STATIC = FsPath(__file__).parent / "static"
 
 
@@ -30,8 +32,10 @@ STATIC = FsPath(__file__).parent / "static"
 async def lifespan(_app):
     if os.getenv("NETWATCH_DISABLE_SCANNER") != "1":
         monitor.start()
+        router.start()
     yield
     monitor.stop()
+    router.stop()
 
 
 app = FastAPI(title="NetWatch", lifespan=lifespan)
@@ -66,12 +70,32 @@ def status():
         "known": len(devices),
         "phone_enabled": notifier.phone_enabled,
         "email_enabled": notifier.email_enabled,
+        "router": _router_status(),
+    }
+
+
+def _router_status():
+    if not router.enabled:
+        return {"enabled": False}
+    s = router.snapshot()
+    return {
+        "enabled": True, "last_sync": s["last_sync"], "error": s["error"],
+        "dhcp_first": s["dhcp_first"], "dhcp_last": s["dhcp_last"],
+        "reservations": len(s["reservations"]),
     }
 
 
 @app.get("/api/devices")
 def devices():
-    return {"now": time.time(), "devices": store.all_devices()}
+    snap = router.snapshot() if router.enabled else None
+    out = []
+    for d in store.all_devices():
+        if snap:
+            r = snap["reservations"].get(d["mac"])
+            d["reserved_ip"] = r["ip"] if r else None
+            d["router_name"] = (r and r["description"]) or snap["names"].get(d["mac"])
+        out.append(d)
+    return {"now": time.time(), "devices": out}
 
 
 class DeviceUpdate(BaseModel):
@@ -108,6 +132,8 @@ def ip_map():
     net = monitor.network or (ipaddress.IPv4Network(cfg.subnet, strict=False) if cfg.subnet else None)
     if net is None:
         return {"subnet": None, "ips": []}
+    snap = router.snapshot() if router.enabled else None
+    reserved = snap["reserved_ips"] if snap else {}
     by_ip = {}
     for d in sorted(store.all_devices(), key=lambda d: (d["online"], d["last_seen"] or 0)):
         if d["ip"]:
@@ -118,14 +144,20 @@ def ip_map():
             break
         ip = str(host)
         d = by_ip.get(ip)
-        if d is None:
-            out.append({"ip": ip, "status": "free"})
+        res = reserved.get(ip)
+        entry = {"ip": ip, "in_pool": router.in_dhcp_pool(ip, snap) if snap else None,
+                 "reserved": bool(res), "reservation": res["description"] if res else None}
+        if d is not None:
+            entry.update(status="online" if d["online"] else "offline", mac=d["mac"],
+                         name=d["nickname"] or (res and res["description"]) or d["hostname"] or d["vendor"],
+                         last_seen=d["last_seen"])
+        elif res:
+            entry.update(status="reserved", mac=res["mac"], name=res["description"])
+        elif snap and snap["router_ip"] == ip:
+            entry.update(status="online", name="Router")
         else:
-            out.append({
-                "ip": ip, "status": "online" if d["online"] else "offline",
-                "mac": d["mac"], "name": d["nickname"] or d["hostname"] or d["vendor"],
-                "last_seen": d["last_seen"],
-            })
+            entry["status"] = "free"
+        out.append(entry)
     return {"subnet": str(net), "ips": out}
 
 

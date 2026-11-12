@@ -17,6 +17,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Drop-off alerts** | Per device, choose **Phone**, **Email**, or both. Optionally get a second alert when the device comes back. |
 | **New-device alerts** | Optionally get notified whenever a device the tool has never seen joins your network. |
 | **Activity log** | A timeline of new devices, disconnects, reconnects, and IP address changes. |
+| **Router integration** *(optional)* | For Linksys Velop/Atlas routers: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses the names from your router. Read-only. |
 | **Phone notifications** | Through [ntfy](https://ntfy.sh) (free, open source, can be self-hosted) and/or [Pushover](https://pushover.net). |
 | **Email notifications** | Through any SMTP server (your mail provider, Gmail with an app password, a self-hosted relay, etc.). |
 | **REST API** | Everything in the dashboard is available as JSON, with interactive docs at `/docs`. |
@@ -102,6 +103,40 @@ On the **Devices** tab, tick **Phone**, **Email**, or both for any device. Tick 
 
 ---
 
+## Linksys router integration (optional)
+
+If your router is a Linksys Velop or Atlas mesh system, NetWatch can read its DHCP settings through the router's local JNAP API (the same API the Linksys web interface uses). With it enabled:
+
+- **IP map:** reserved addresses are shown in purple, even when the device is off, so they're never mistaken for free. Free addresses *outside* the DHCP pool get a dashed outline; these are the ones safe to assign as static IPs. A **Copy static-safe IPs** button copies just those.
+- **Devices:** reservation descriptions and device names from the Linksys app are used as display names, which also appear in alerts. Devices whose reservation points at a different IP than they're using get a warning badge.
+
+Enable it in `.env`:
+
+```
+LINKSYS_URL=http://192.168.1.1
+LINKSYS_PASSWORD=<router admin password>
+```
+
+To check that your router supports it before enabling (the password prompt keeps it out of your shell history):
+
+```bash
+read -s -p "Router admin password: " P; echo
+curl -s -X POST http://192.168.1.1/JNAP/ \
+  -H "X-JNAP-Action: http://linksys.com/jnap/router/GetLANSettings" \
+  -H "X-JNAP-Authorization: Basic $(printf 'admin:%s' "$P" | base64)" \
+  -H "Content-Type: application/json" -d '{}'
+unset P
+```
+
+A response starting with `"result": "OK"` means it's supported.
+
+Notes:
+- **Read-only by design.** NetWatch never changes router settings.
+- **Unofficial API.** JNAP isn't documented by Linksys, so a firmware update could change it. If a sync fails, NetWatch shows a banner and keeps working without router data.
+- **Plain HTTP.** Most Linksys routers serve JNAP over unencrypted HTTP, so the admin password crosses your LAN encoded but not encrypted. Only enable this on a network you trust.
+
+---
+
 ## Configuration
 
 All settings are environment variables in `.env`. See `.env.example` for a commented template.
@@ -124,6 +159,9 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURITY` | – / `587` / `starttls` | Mail server; security is `starttls`, `ssl`, or `none` |
 | `SMTP_USER` / `SMTP_PASSWORD` | *(empty)* | Mail server login |
 | `SMTP_FROM` / `SMTP_TO` | *(empty)* | Sender address; comma-separated recipients |
+| `LINKSYS_URL` | *(empty)* | Linksys router address, e.g. `http://192.168.1.1`. Empty disables the integration. |
+| `LINKSYS_USERNAME` / `LINKSYS_PASSWORD` | `admin` / *(empty)* | Router admin login (read-only use) |
+| `ROUTER_POLL_INTERVAL` | `300` | Seconds between router syncs |
 | `NOTIFY_NEW_DEVICES` | `none` | Alert on never-seen devices: `none`, `phone`, `email`, `both` |
 
 ---
@@ -180,7 +218,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 
 ## Limitations and tips
 
-- **"Free" means nothing answered right now.** A powered-off device may still hold a DHCP lease, and IPs reserved on your router may look free. Before assigning a static IP, pick one outside your router's DHCP pool. The amber cells show addresses recently used by known devices.
+- **"Free" means nothing answered right now.** A powered-off device may still hold a DHCP lease, and IPs reserved on your router may look free (unless the Linksys integration is enabled). Before assigning a static IP, pick one outside your router's DHCP pool. The amber cells show addresses recently used by known devices.
 - **Randomized MAC addresses.** Modern phones and laptops often use a private MAC per Wi-Fi network; these show as "Private (randomized MAC)". The address is normally stable for a given network. If a device rotates it, it will show up as a new device.
 - **Sleeping phones.** Phones can ignore ARP for several minutes while idle. If you watch a phone, raise `OFFLINE_AFTER_MISSED_SCANS` (e.g. to 10) to avoid false alarms.
 - **Hostnames** depend on your router or DNS server publishing DHCP hostnames. If the column is blank, name devices in the dashboard.
@@ -215,6 +253,7 @@ netwatch/
 │   ├── scanner.py       # ARP sweeps, probes, hostname and vendor lookup
 │   ├── notifier.py      # ntfy, Pushover and SMTP delivery
 │   ├── security.py      # Login, CSRF/Host checks, security headers
+│   ├── router_linksys.py  # Optional read-only Linksys JNAP integration
 │   ├── db.py            # SQLite storage
 │   ├── config.py        # Environment-variable configuration
 │   └── static/index.html  # Dashboard (single page, no external assets)

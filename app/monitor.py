@@ -27,9 +27,14 @@ def fmt_time(ts):
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
 
 
-def label(dev):
-    name = dev.get("nickname") or dev.get("hostname") or dev.get("vendor") or dev["mac"]
-    return f"{name} ({dev.get('ip')})"
+def display_name(dev, router=None):
+    hint = router.name_for(dev["mac"]) if router is not None and router.enabled else None
+    return (dev.get("nickname") or hint or dev.get("hostname")
+            or dev.get("vendor") or dev["mac"])
+
+
+def label(dev, router=None):
+    return f"{display_name(dev, router)} ({dev.get('ip')})"
 
 
 def is_watched(dev):
@@ -37,8 +42,9 @@ def is_watched(dev):
 
 
 class Monitor:
-    def __init__(self, cfg, store, notifier, scanner=default_scanner):
+    def __init__(self, cfg, store, notifier, scanner=default_scanner, router=None):
         self.cfg = cfg
+        self.router = router
         self.store = store
         self.notifier = notifier
         self.scanner = scanner
@@ -155,8 +161,8 @@ class Monitor:
             if is_watched(dev) and dev["notify_return"]:
                 d = {**dev, "ip": ip}
                 self.notifier.notify(
-                    f"Back online: {d.get('nickname') or d.get('hostname') or ip}",
-                    f"{label(d)} is back on the network after being offline for "
+                    f"Back online: {display_name(d, self.router)}",
+                    f"{label(d, self.router)} is back on the network after being offline for "
                     f"{fmt_duration(offline_for)}.",
                     phone=bool(dev["notify_phone"]), email=bool(dev["notify_email"]),
                     tags=["white_check_mark"],
@@ -186,8 +192,8 @@ class Monitor:
                              f"Dropped off after {fmt_duration(connected_for)} connected", ts=now)
         if is_watched(dev):
             self.notifier.notify(
-                f"Offline: {dev.get('nickname') or dev.get('hostname') or dev['ip']}",
-                f"{label(dev)} dropped off the network.\n"
+                f"Offline: {display_name(dev, self.router)}",
+                f"{label(dev, self.router)} dropped off the network.\n"
                 f"Last seen: {fmt_time(dev['last_seen'])}\n"
                 f"It had been connected for {fmt_duration(connected_for)}.\n"
                 f"MAC: {mac}",
