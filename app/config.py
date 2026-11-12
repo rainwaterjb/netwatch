@@ -46,6 +46,8 @@ class Config:
     linksys_username: str = "admin"
     linksys_password: str = ""
     router_poll_interval: int = 300
+    linksys_allow_changes: bool = False # allow adding/removing DHCP reservations
+    router_backup_dir: str = "/data/router-backups"
 
     @classmethod
     def from_env(cls):
@@ -76,4 +78,7 @@ class Config:
             linksys_username=_env("LINKSYS_USERNAME", "admin"),
             linksys_password=_env("LINKSYS_PASSWORD"),
             router_poll_interval=max(60, int(_env("ROUTER_POLL_INTERVAL", "300"))),
+            linksys_allow_changes=_env("LINKSYS_ALLOW_CHANGES", "false").lower() in ("1", "true", "yes"),
+            router_backup_dir=_env("ROUTER_BACKUP_DIR")
+                or os.path.join(os.path.dirname(_env("DB_PATH", "/data/netwatch.db")) or ".", "router-backups"),
         )

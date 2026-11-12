@@ -14,7 +14,7 @@ from .config import Config
 from .db import Store
 from .monitor import Monitor
 from .notifier import Notifier
-from .router_linksys import LinksysRouter
+from .router_linksys import LinksysRouter, RouterError
 from .security import SecurityMiddleware
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"),
@@ -78,11 +78,99 @@ def _router_status():
     if not router.enabled:
         return {"enabled": False}
     s = router.snapshot()
+    can_change, reason = _change_permission()
     return {
         "enabled": True, "last_sync": s["last_sync"], "error": s["error"],
         "dhcp_first": s["dhcp_first"], "dhcp_last": s["dhcp_last"],
-        "reservations": len(s["reservations"]),
+        "reservations": len(s["reservations"]), "max_desc": s["max_desc"],
+        "can_change": can_change, "change_disabled_reason": reason,
     }
+
+
+def _change_permission():
+    if not router.enabled:
+        return False, "Linksys integration is not configured"
+    if not cfg.linksys_allow_changes:
+        return False, "Set LINKSYS_ALLOW_CHANGES=true in .env to manage reservations here"
+    if not cfg.web_password:
+        return False, "Set WEB_PASSWORD in .env first: router changes require a dashboard login"
+    return True, None
+
+
+@app.get("/api/reservations")
+def reservations():
+    if not router.enabled:
+        raise HTTPException(404, "Linksys integration is not configured")
+    snap = router.snapshot()
+    devices = {d["mac"]: d for d in store.all_devices()}
+    out = []
+    for mac, r in snap["reservations"].items():
+        d = devices.get(mac)
+        if d is None:
+            state = "never_seen"
+        elif not d["online"]:
+            state = "offline"
+        elif d["ip"] == r["ip"]:
+            state = "active"
+        else:
+            state = "pending"           # online, but hasn't picked up the reserved IP yet
+        out.append({
+            "mac": mac, "ip": r["ip"], "description": r["description"], "state": state,
+            "current_ip": d["ip"] if d else None,
+            "device_name": (d and (d["nickname"] or d["hostname"] or d["vendor"])) or snap["names"].get(mac),
+            "last_seen": d["last_seen"] if d else None,
+        })
+    out.sort(key=lambda r: ipaddress.IPv4Address(r["ip"]))
+    return {"reservations": out, "router": _router_status()}
+
+
+class NewReservation(BaseModel):
+    mac: str = Field(max_length=17)
+    ip: str = Field(max_length=15)
+    description: str = Field(default="", max_length=63)
+
+
+def _require_change_permission():
+    ok, reason = _change_permission()
+    if not ok:
+        raise HTTPException(403, reason)
+
+
+@app.post("/api/reservations")
+def add_reservation(body: NewReservation):
+    _require_change_permission()
+    try:
+        mac, ip, _ = router.validate_new(body.mac, body.ip, body.description)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    clash = next((d for d in store.all_devices()
+                  if d["online"] and d["ip"] == ip and d["mac"] != mac), None)
+    if clash:
+        raise HTTPException(409, f"{ip} is currently in use by "
+                                 f"{clash['nickname'] or clash['hostname'] or clash['mac']}. Pick a free address.")
+    try:
+        router.add_reservation(mac, ip, body.description)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    except RouterError as e:
+        raise HTTPException(502, str(e)) from None
+    store.add_event("reservation", mac, ip, f"Reserved {ip}" + (f" ({body.description.strip()})" if body.description.strip() else ""))
+    return {"ok": True}
+
+
+@app.delete("/api/reservations/{mac}")
+def remove_reservation(mac: str = Path(pattern=MAC_PATTERN)):
+    _require_change_permission()
+    snap = router.snapshot()
+    r = snap["reservations"].get(mac.lower())
+    try:
+        router.remove_reservation(mac)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from None
+    except RouterError as e:
+        raise HTTPException(502, str(e)) from None
+    store.add_event("reservation", mac.lower(), r["ip"] if r else None, "Reservation removed")
+    return {"ok": True}
 
 
 @app.get("/api/devices")

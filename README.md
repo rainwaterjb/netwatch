@@ -17,7 +17,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Drop-off alerts** | Per device, choose **Phone**, **Email**, or both. Optionally get a second alert when the device comes back. |
 | **New-device alerts** | Optionally get notified whenever a device the tool has never seen joins your network. |
 | **Activity log** | A timeline of new devices, disconnects, reconnects, and IP address changes. |
-| **Router integration** *(optional)* | For Linksys Velop/Atlas routers: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses the names from your router. Read-only. |
+| **Router integration** *(optional)* | For Linksys Velop/Atlas routers: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses the names from your router. Optionally add and remove DHCP reservations from a **Reservations** tab. |
 | **Phone notifications** | Through [ntfy](https://ntfy.sh) (free, open source, can be self-hosted) and/or [Pushover](https://pushover.net). |
 | **Email notifications** | Through any SMTP server (your mail provider, Gmail with an app password, a self-hosted relay, etc.). |
 | **REST API** | Everything in the dashboard is available as JSON, with interactive docs at `/docs`. |
@@ -109,6 +109,7 @@ If your router is a Linksys Velop or Atlas mesh system, NetWatch can read its DH
 
 - **IP map:** reserved addresses are shown in purple, even when the device is off, so they're never mistaken for free. Free addresses *outside* the DHCP pool get a dashed outline; these are the ones safe to assign as static IPs. A **Copy static-safe IPs** button copies just those.
 - **Devices:** reservation descriptions and device names from the Linksys app are used as display names, which also appear in alerts. Devices whose reservation points at a different IP than they're using get a warning badge.
+- **Reservations tab:** lists every DHCP reservation on the router and whether each device is actually using its reserved address.
 
 Enable it in `.env`:
 
@@ -131,9 +132,33 @@ unset P
 A response starting with `"result": "OK"` means it's supported.
 
 Notes:
-- **Read-only by design.** NetWatch never changes router settings.
+- **Read-only unless you opt in.** By default NetWatch never changes router settings. See below to manage reservations.
 - **Unofficial API.** JNAP isn't documented by Linksys, so a firmware update could change it. If a sync fails, NetWatch shows a banner and keeps working without router data.
 - **Plain HTTP.** Most Linksys routers serve JNAP over unencrypted HTTP, so the admin password crosses your LAN encoded but not encrypted. Only enable this on a network you trust.
+
+### Managing reservations from NetWatch (optional)
+
+With `LINKSYS_ALLOW_CHANGES=true` **and** a `WEB_PASSWORD` set, the Reservations tab lets you:
+
+- **Reserve an address:** pick a device (or enter a MAC address), choose an IP, and add a description. A **Reserve** button on the Devices tab pre-fills the form with that device's current IP.
+- **Remove a reservation.**
+
+Safeguards:
+
+- **Validated first.** The IP must be on your network and inside the DHCP pool (a Linksys requirement). It can't be already reserved or in use by another device, and it can't be the router's own address.
+- **Backed up.** The router's full LAN settings are saved to `/data/router-backups/` before every change. The last 30 backups are kept, readable only by the container user.
+- **Only reservations change.** NetWatch reads the live settings, changes only the reservation list, and sends everything else back untouched.
+- **Verified and rolled back.** After saving, NetWatch reads the settings again. If anything other than the reservation list changed, or the reservation didn't stick, it restores the previous settings automatically and shows an error.
+- **Logged.** Every change appears in the Activity log.
+
+A device picks up a new reservation the next time it renews its DHCP lease. Reconnect or reboot it to apply it immediately. Until then, its status shows as *Waiting*.
+
+To view or copy a backup:
+
+```bash
+docker exec netwatch ls /data/router-backups
+docker cp netwatch:/data/router-backups ./router-backups
+```
 
 ---
 
@@ -162,6 +187,7 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `LINKSYS_URL` | *(empty)* | Linksys router address, e.g. `http://192.168.1.1`. Empty disables the integration. |
 | `LINKSYS_USERNAME` / `LINKSYS_PASSWORD` | `admin` / *(empty)* | Router admin login (read-only use) |
 | `ROUTER_POLL_INTERVAL` | `300` | Seconds between router syncs |
+| `LINKSYS_ALLOW_CHANGES` | `false` | Allow adding/removing DHCP reservations (also requires `WEB_PASSWORD`) |
 | `NOTIFY_NEW_DEVICES` | `none` | Alert on never-seen devices: `none`, `phone`, `email`, `both` |
 
 ---
@@ -237,6 +263,9 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `DELETE` | `/api/devices/{mac}` | Forget a device |
 | `GET` | `/api/ips` | Every address in the subnet with its status |
 | `GET` | `/api/events?limit=&mac=` | Activity log |
+| `GET` | `/api/reservations` | DHCP reservations on the router, with device status |
+| `POST` | `/api/reservations` | Add a reservation: `mac`, `ip`, `description` (requires `LINKSYS_ALLOW_CHANGES`) |
+| `DELETE` | `/api/reservations/{mac}` | Remove a reservation (requires `LINKSYS_ALLOW_CHANGES`) |
 | `POST` | `/api/scan` | Trigger a scan now |
 | `POST` | `/api/test-notification` | Send a test alert |
 | `GET` | `/healthz` | Unauthenticated health check (used by Docker) |
@@ -253,7 +282,7 @@ netwatch/
 │   ├── scanner.py       # ARP sweeps, probes, hostname and vendor lookup
 │   ├── notifier.py      # ntfy, Pushover and SMTP delivery
 │   ├── security.py      # Login, CSRF/Host checks, security headers
-│   ├── router_linksys.py  # Optional read-only Linksys JNAP integration
+│   ├── router_linksys.py  # Optional Linksys JNAP integration (reservations)
 │   ├── db.py            # SQLite storage
 │   ├── config.py        # Environment-variable configuration
 │   └── static/index.html  # Dashboard (single page, no external assets)
