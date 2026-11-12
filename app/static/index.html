@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetWatch</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171b21; --line: #262c35; --text: #e6e9ee; --muted: #8a94a3;
+    --green: #3ecf8e; --red: #f0616d; --amber: #f2b84b; --free: #222831; --accent: #5aa9ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;
+           padding: 16px 24px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  h1 span { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+  .stats { display: flex; gap: 18px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+  .stats b { color: var(--text); font-weight: 600; }
+  button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+           padding: 6px 12px; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--accent); }
+  button.danger:hover { border-color: var(--red); color: var(--red); }
+  main { padding: 16px 24px 48px; max-width: 1400px; margin: 0 auto; }
+  nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+  nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none;
+               color: var(--muted); padding: 8px 14px; }
+  nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+  .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  input[type=search], input[type=text] { background: var(--panel); border: 1px solid var(--line); color: var(--text);
+           border-radius: 6px; padding: 6px 10px; font: inherit; }
+  input[type=search] { width: 280px; }
+  label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+       cursor: pointer; user-select: none; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr.off td { color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.off { background: var(--red); opacity: .7; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .name { cursor: text; border-bottom: 1px dashed transparent; }
+  .name:hover { border-bottom-color: var(--muted); }
+  .alerts { display: flex; gap: 10px; flex-wrap: wrap; }
+  .alerts label { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--muted); }
+  .alerts label.disabled { opacity: .4; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; }
+  .cell { height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+          font-size: 11px; background: var(--free); color: var(--muted); cursor: default; }
+  .cell.online { background: rgba(62,207,142,.25); color: var(--text); border: 1px solid rgba(62,207,142,.6); }
+  .cell.offline { background: rgba(242,184,75,.15); color: var(--amber); border: 1px solid rgba(242,184,75,.4); }
+  .legend { display: flex; gap: 16px; margin: 0 0 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .k-new { color: var(--accent); } .k-online { color: var(--green); } .k-offline { color: var(--red); }
+  .k-ip_change { color: var(--amber); }
+  .banner { background: rgba(240,97,109,.12); border: 1px solid rgba(240,97,109,.4); color: var(--red);
+            padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: none; }
+  .hidden { display: none; }
+  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel); border: 1px solid var(--line);
+           padding: 10px 14px; border-radius: 8px; display: none; max-width: 420px; }
+  @media (max-width: 800px) { .hide-sm { display: none; } input[type=search] { width: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>NetWatch <span id="subnet"></span></h1>
+  <div class="stats">
+    <div>Online <b id="s-online">–</b></div>
+    <div>Known <b id="s-known">–</b></div>
+    <div>Free IPs <b id="s-free">–</b></div>
+    <div>Last scan <b id="s-scan">–</b></div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button id="btn-scan">Scan now</button>
+    <button id="btn-test">Send test alert</button>
+  </div>
+</header>
+<main>
+  <div class="banner" id="err"></div>
+  <nav>
+    <button data-tab="devices" class="active">Devices</button>
+    <button data-tab="ips">IP addresses</button>
+    <button data-tab="events">Activity</button>
+  </nav>
+
+  <section id="tab-devices">
+    <div class="toolbar">
+      <input type="search" id="filter" placeholder="Filter by name, IP, MAC, vendor…">
+      <label class="chk"><input type="checkbox" id="show-offline" checked> Show offline</label>
+      <label class="chk"><input type="checkbox" id="only-watched"> Only watched</label>
+    </div>
+    <table>
+      <thead><tr>
+        <th data-sort="online"></th>
+        <th data-sort="name">Device</th>
+        <th data-sort="ip">IP</th>
+        <th data-sort="mac" class="hide-sm">MAC</th>
+        <th data-sort="uptime">Connected for / last seen</th>
+        <th data-sort="first_seen" class="hide-sm">First seen</th>
+        <th>Alert me if it drops off</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="dev-body"></tbody>
+    </table>
+  </section>
+
+  <section id="tab-ips" class="hidden">
+    <div class="legend">
+      <span><i style="background:rgba(62,207,142,.5)"></i>In use (online)</span>
+      <span><i style="background:rgba(242,184,75,.4)"></i>Last used by an offline device</span>
+      <span><i style="background:var(--free)"></i>Available</span>
+    </div>
+    <div class="toolbar"><button id="btn-copy-free">Copy available IPs</button></div>
+    <div class="grid" id="ip-grid"></div>
+  </section>
+
+  <section id="tab-events" class="hidden">
+    <table>
+      <thead><tr><th>Time</th><th>Event</th><th>Device</th><th>IP</th><th>Detail</th></tr></thead>
+      <tbody id="ev-body"></tbody>
+    </table>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ipNum = ip => (ip || "0.0.0.0").split(".").reduce((a, o) => a * 256 + (+o), 0);
+let state = { status: {}, devices: [], now: Date.now() / 1000, ips: [], events: [], sort: "ip", dir: 1, tab: "devices" };
+
+function dur(s) {
+  s = Math.max(0, Math.floor(s));
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  if (d) return `${d}d ${h}h`; if (h) return `${h}h ${m}m`; if (m) return `${m}m`; return `${s}s`;
+}
+const ts = t => t ? new Date(t * 1000).toLocaleString() : "–";
+const devName = d => d.nickname || d.hostname || d.vendor || "Unknown device";
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 4000); }
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+async function refresh() {
+  try {
+    const [st, dv, ips] = await Promise.all([api("/api/status"), api("/api/devices"), api("/api/ips")]);
+    state.status = st; state.devices = dv.devices; state.now = dv.now; state.ips = ips.ips;
+    if (state.tab === "events") state.events = (await api("/api/events?limit=300")).events;
+    render();
+  } catch (e) { showErr("Can't reach NetWatch: " + e.message); }
+}
+function showErr(msg) { const b = $("#err"); b.textContent = msg; b.style.display = msg ? "block" : "none"; }
+
+function render() {
+  const st = state.status;
+  $("#subnet").textContent = [st.subnet, st.interface].filter(Boolean).join(" · ");
+  $("#s-online").textContent = st.online; $("#s-known").textContent = st.known;
+  $("#s-free").textContent = state.ips.filter(i => i.status === "free").length;
+  $("#s-scan").textContent = st.last_scan ? `${dur(st.now - st.last_scan)} ago` : "pending";
+  showErr(st.last_error ? "Last scan failed: " + st.last_error : "");
+  if (state.tab === "devices") renderDevices();
+  if (state.tab === "ips") renderIps();
+  if (state.tab === "events") renderEvents();
+}
+
+function renderDevices() {
+  const q = $("#filter").value.toLowerCase(), showOff = $("#show-offline").checked, onlyW = $("#only-watched").checked;
+  const st = state.status, now = state.now;
+  let rows = state.devices.filter(d =>
+    (showOff || d.online) && (!onlyW || d.notify_phone || d.notify_email) &&
+    (!q || [d.nickname, d.hostname, d.vendor, d.ip, d.mac].some(v => (v || "").toLowerCase().includes(q))));
+  const key = {
+    online: d => -d.online, name: d => devName(d).toLowerCase(), ip: d => ipNum(d.ip), mac: d => d.mac,
+    uptime: d => d.online ? now - d.online_since : -(now - d.last_seen), first_seen: d => d.first_seen,
+  }[state.sort];
+  rows.sort((a, b) => (b.online - a.online) || ((key(a) > key(b) ? 1 : key(a) < key(b) ? -1 : 0) * state.dir));
+  const chk = (d, f, enabled, text, title) =>
+    `<label class="${enabled ? "" : "disabled"}" title="${esc(title)}"><input type="checkbox" data-mac="${d.mac}" data-field="${f}"
+      ${d[f] ? "checked" : ""} ${enabled ? "" : "disabled"}> ${text}</label>`;
+  $("#dev-body").innerHTML = rows.map(d => `
+    <tr class="${d.online ? "" : "off"}">
+      <td><span class="dot ${d.online ? "on" : "off"}" title="${d.online ? "Online" : "Offline"}"></span></td>
+      <td><div class="name" data-mac="${d.mac}" title="Click to rename">${esc(devName(d))}</div>
+          <div class="sub">${esc([d.nickname && d.hostname, d.vendor].filter(Boolean).join(" · "))}</div></td>
+      <td class="mono">${esc(d.ip)}</td>
+      <td class="mono hide-sm">${esc(d.mac)}</td>
+      <td>${d.online ? `<b>${dur(now - d.online_since)}</b><div class="sub">since ${ts(d.online_since)}</div>`
+                     : `Offline<div class="sub">last seen ${ts(d.last_seen)}</div>`}</td>
+      <td class="hide-sm sub">${ts(d.first_seen)}</td>
+      <td><div class="alerts">
+        ${chk(d, "notify_phone", st.phone_enabled, "Phone", st.phone_enabled ? "Push notification" : "Set NTFY_URL or Pushover keys to enable")}
+        ${chk(d, "notify_email", st.email_enabled, "Email", st.email_enabled ? "Email alert" : "Set SMTP_* settings to enable")}
+        ${chk(d, "notify_return", !!(d.notify_phone || d.notify_email), "+ when back", "Also alert when it reconnects")}
+      </div></td>
+      <td><button class="danger" data-forget="${d.mac}" title="Remove from history">Forget</button></td>
+    </tr>`).join("") || `<tr><td colspan="8" class="sub">No devices yet. The first scan runs at startup.</td></tr>`;
+}
+
+function renderIps() {
+  $("#ip-grid").innerHTML = state.ips.map(i => {
+    const tip = i.status === "free" ? `${i.ip} — available`
+      : `${i.ip} — ${i.name || "Unknown"} (${i.mac})${i.status === "offline" ? ", last seen " + ts(i.last_seen) : ""}`;
+    return `<div class="cell ${i.status}" title="${esc(tip)}">.${i.ip.split(".").pop()}</div>`;
+  }).join("");
+}
+
+function renderEvents() {
+  const byMac = Object.fromEntries(state.devices.map(d => [d.mac, d]));
+  const names = { new: "New device", online: "Online", offline: "Offline", ip_change: "IP changed" };
+  $("#ev-body").innerHTML = state.events.map(e => `
+    <tr><td class="sub">${ts(e.ts)}</td><td class="k-${e.kind}">${names[e.kind] || e.kind}</td>
+        <td>${esc(byMac[e.mac] ? devName(byMac[e.mac]) : e.mac)}</td><td class="mono">${esc(e.ip)}</td>
+        <td class="sub">${esc(e.detail)}</td></tr>`).join("") || `<tr><td colspan="5" class="sub">No activity yet.</td></tr>`;
+}
+
+// Events
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
+  state.tab = b.dataset.tab;
+  ["devices", "ips", "events"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== state.tab));
+  refresh();
+});
+document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
+  const k = th.dataset.sort; state.dir = state.sort === k ? -state.dir : 1; state.sort = k; renderDevices();
+});
+["#filter", "#show-offline", "#only-watched"].forEach(s => $(s).addEventListener("input", renderDevices));
+
+$("#dev-body").addEventListener("change", async e => {
+  const c = e.target; if (!c.dataset.field) return;
+  try { await api(`/api/devices/${c.dataset.mac}`, { method: "PATCH", body: JSON.stringify({ [c.dataset.field]: c.checked }) });
+        toast("Saved"); refresh(); } catch (err) { toast(err.message); c.checked = !c.checked; }
+});
+$("#dev-body").addEventListener("click", async e => {
+  const n = e.target.closest(".name");
+  if (n) {
+    const d = state.devices.find(x => x.mac === n.dataset.mac);
+    const v = prompt(`Name for ${d.mac} (${d.ip}) — leave blank to clear`, d.nickname || "");
+    if (v !== null) { await api(`/api/devices/${d.mac}`, { method: "PATCH", body: JSON.stringify({ nickname: v }) }); refresh(); }
+  }
+  const f = e.target.dataset.forget;
+  if (f && confirm("Forget this device and its alert settings? It will reappear as new if seen again.")) {
+    await api(`/api/devices/${f}`, { method: "DELETE" }); refresh();
+  }
+});
+$("#btn-scan").onclick = async () => { await api("/api/scan", { method: "POST" }); toast("Scan started"); setTimeout(refresh, 6000); };
+$("#btn-test").onclick = async () => {
+  const st = state.status;
+  if (!st.phone_enabled && !st.email_enabled) return toast("No notification channels configured yet (see .env).");
+  const r = await api("/api/test-notification", { method: "POST", body: JSON.stringify({ phone: st.phone_enabled, email: st.email_enabled }) });
+  toast(Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(" · "));
+};
+$("#btn-copy-free").onclick = async () => {
+  const free = state.ips.filter(i => i.status === "free").map(i => i.ip).join("\n");
+  try { await navigator.clipboard.writeText(free); toast("Copied"); } catch { toast("Clipboard not available over plain HTTP"); }
+};
+
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>

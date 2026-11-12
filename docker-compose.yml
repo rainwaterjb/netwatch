@@ -1,0 +1,25 @@
+services:
+  netwatch:
+    build: .
+    image: netwatch:latest
+    container_name: netwatch
+    restart: unless-stopped
+    # Host networking is required: ARP only works on the same layer-2 network,
+    # so the container has to sit directly on your LAN interface.
+    network_mode: host
+    # Least privilege: drop every capability, then add back only raw sockets.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_RAW
+    env_file: .env
+    volumes:
+      - netwatch-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 100
+
+volumes:
+  netwatch-data:
