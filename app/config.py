@@ -3,6 +3,15 @@ import os
 from dataclasses import dataclass, field
 
 
+def _tls_mode(value):
+    v = value.lower()
+    if v in ("off", "false", "no", "0", "none"):
+        return "off"
+    if v in ("custom", "file", "files"):
+        return "custom"
+    return "self-signed"
+
+
 def _env(name, default=""):
     return os.getenv(name, default).strip()
 
@@ -35,6 +44,15 @@ class Config:
 
     # Optional: alert when an unknown device joins (none | phone | email | both)
     notify_new_devices: str = "none"
+
+    # HTTPS
+    tls_mode: str = "self-signed"       # self-signed | custom | off
+    https_port: int = 8443
+    http_port: int = 8080               # redirects to HTTPS (or serves the UI when TLS is off)
+    tls_dir: str = "/data/tls"
+    tls_cert_file: str = ""
+    tls_key_file: str = ""
+    tls_hostnames: list[str] = field(default_factory=list)
 
     # Web UI security
     web_username: str = "admin"
@@ -71,6 +89,14 @@ class Config:
             smtp_from=_env("SMTP_FROM") or _env("SMTP_USER"),
             smtp_to=[a.strip() for a in _env("SMTP_TO").split(",") if a.strip()],
             notify_new_devices=_env("NOTIFY_NEW_DEVICES", "none").lower(),
+            tls_mode=_tls_mode(_env("TLS", "self-signed")),
+            https_port=int(_env("HTTPS_PORT", "8443")),
+            http_port=int(_env("PORT", "8080") or 0),
+            tls_dir=_env("TLS_DIR") or os.path.join(
+                os.path.dirname(_env("DB_PATH", "/data/netwatch.db")) or ".", "tls"),
+            tls_cert_file=_env("TLS_CERT_FILE"),
+            tls_key_file=_env("TLS_KEY_FILE"),
+            tls_hostnames=[h.strip() for h in _env("TLS_HOSTNAMES").split(",") if h.strip()],
             web_username=_env("WEB_USERNAME", "admin"),
             web_password=_env("WEB_PASSWORD"),
             allowed_hosts=[h.strip().lower() for h in _env("ALLOWED_HOSTS").split(",") if h.strip()],

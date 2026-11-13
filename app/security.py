@@ -12,7 +12,7 @@ from starlette.responses import PlainTextResponse, Response
 log = logging.getLogger("netwatch.security")
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-PUBLIC_PATHS = {"/healthz"}          # used by the container health check
+PUBLIC_PATHS = {"/healthz", "/netwatch.crt"}   # health check; public certificate
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -70,6 +70,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         for k, v in SECURITY_HEADERS.items():
             response.headers.setdefault(k, v)
+        # HSTS only with a certificate browsers already trust; with a self-signed
+        # certificate it would stop users from clicking through the warning.
+        if self.cfg.tls_mode == "custom" and request.url.scheme == "https":
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
         if path == "/":
             response.headers["Content-Security-Policy"] = PAGE_CSP
             response.headers["Cache-Control"] = "no-store"

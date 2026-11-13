@@ -26,14 +26,17 @@ RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin netw
 
 ENV DB_PATH=/data/netwatch.db \
     PORT=8080 \
+    HTTPS_PORT=8443 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     HOME=/tmp
 USER netwatch
 VOLUME ["/data"]
-EXPOSE 8080
+EXPOSE 8443 8080
 
-HEALTHCHECK --interval=60s --timeout=5s --start-period=20s \
-  CMD python -c "import urllib.request,os; urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"PORT\"]}/healthz', timeout=4)"
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s \
+  CMD ["python", "-m", "app.healthcheck"]
 
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --no-server-header --proxy-headers --forwarded-allow-ips=127.0.0.1"]
+# Serves HTTPS on HTTPS_PORT (self-signed certificate by default) and redirects
+# PORT to it. Set TLS=off to serve plain HTTP on PORT instead.
+CMD ["python", "-m", "app.serve"]

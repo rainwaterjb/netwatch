@@ -61,7 +61,7 @@ nano .env                    # set SUBNET, WEB_PASSWORD and your notification se
 docker compose up -d --build
 ```
 
-Then open `http://<host-ip>:8080` and log in with `WEB_USERNAME` / `WEB_PASSWORD`.
+Then open `https://<host-ip>:8443` and log in with `WEB_USERNAME` / `WEB_PASSWORD`. Your browser will warn about the certificate the first time; see [HTTPS](#https) to make that go away. `http://<host-ip>:8080` redirects to the HTTPS address.
 
 Useful commands:
 
@@ -79,6 +79,44 @@ Docker needs a guest to run in. Either option works:
 - **LXC container:** a Debian LXC on the LAN bridge with the **nesting** feature enabled (plus **keyctl** for unprivileged containers). If the image build fails at the `setcap` step, the container's storage doesn't support file capabilities; use a VM instead.
 
 If your network uses VLANs, attach the guest to the VLAN you want to watch. Run one NetWatch instance per VLAN.
+
+---
+
+## HTTPS
+
+The dashboard is served over HTTPS by default, so your login and network data are encrypted on the wire.
+
+| `TLS` setting | What happens |
+|---|---|
+| `self-signed` *(default)* | NetWatch creates its own certificate on first start (stored in `/data/tls`). It is reused across restarts and only regenerated when it nears expiry or the host's name/IP changes. |
+| `custom` | Uses your own certificate and key, e.g. from a home-lab CA or Let's Encrypt. |
+| `off` | Plain HTTP on `PORT`. Not recommended: the login is sent unencrypted. |
+
+The dashboard is at `https://<host-ip>:8443` (`HTTPS_PORT`). Plain HTTP on port 8080 (`PORT`) redirects there automatically. The header shows **🔒 HTTPS**; hover over it to see the certificate's SHA-256 fingerprint and expiry date.
+
+### Removing the browser warning (self-signed)
+
+A self-signed certificate isn't vouched for by a public authority, so browsers warn the first time. You can click through (the connection is still encrypted), or install the certificate as trusted on the devices you use. Click **certificate** in the dashboard header to download `netwatch.crt`, then:
+
+- **macOS:** open the file in Keychain Access, double-click the certificate, expand *Trust*, and set *When using this certificate* to **Always Trust**.
+- **Windows:** double-click the file → *Install Certificate* → *Local Machine* → *Place all certificates in the following store* → **Trusted Root Certification Authorities**.
+- **iPhone / iPad:** open the file and install the profile in *Settings → General → VPN & Device Management*, then enable it under *Settings → General → About → Certificate Trust Settings*.
+- **Android:** *Settings → Security → Encryption & credentials → Install a certificate → CA certificate*.
+- **Firefox** uses its own store: *Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import*.
+
+Before trusting it, check that the fingerprint matches the one in the container log (`docker compose logs | grep SHA-256`).
+
+The certificate covers the host's name and LAN IP. To reach NetWatch by another name (e.g. `netwatch.lan` from your local DNS), add it to `TLS_HOSTNAMES` and restart; the certificate is regenerated, so install the new one.
+
+### Using your own certificate
+
+```
+TLS=custom
+TLS_CERT_FILE=/certs/fullchain.pem
+TLS_KEY_FILE=/certs/privkey.pem
+```
+
+Mount the folder in `docker-compose.yml` (`- ./certs:/certs:ro`). The key must be readable by the container user (UID 10001). With a trusted certificate, NetWatch also sends an HSTS header so browsers always use HTTPS.
 
 ---
 
@@ -174,7 +212,11 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `OFFLINE_AFTER_MISSED_SCANS` | `3` | Consecutive missed sweeps before a device counts as offline |
 | `ARP_TIMEOUT` | `3` | Seconds to wait for replies during a sweep |
 | `EVENT_RETENTION_DAYS` | `90` | How long to keep the activity log |
-| `PORT` | `8080` | Web dashboard port |
+| `TLS` | `self-signed` | HTTPS mode: `self-signed`, `custom`, or `off` |
+| `HTTPS_PORT` | `8443` | HTTPS dashboard port |
+| `PORT` | `8080` | Plain-HTTP port; redirects to HTTPS (serves the dashboard when `TLS=off`) |
+| `TLS_HOSTNAMES` | *(empty)* | Extra names/IPs for the self-signed certificate, comma-separated |
+| `TLS_CERT_FILE` / `TLS_KEY_FILE` | *(empty)* | Certificate and key for `TLS=custom` |
 | `TZ` | `UTC` | Time zone used for timestamps in alerts |
 | `WEB_USERNAME` | `admin` | Dashboard login username |
 | `WEB_PASSWORD` | *(empty)* | Dashboard login password. **Strongly recommended.** Empty disables login. |
@@ -203,6 +245,7 @@ NetWatch is designed to run on a trusted home or lab network. It ships with thes
 - Secrets are read from `.env`, which is excluded from Git (`.gitignore`) and from the image (`.dockerignore`).
 
 **Web application**
+- HTTPS by default (TLS 1.2+), with HTTP redirected to HTTPS.
 - Optional HTTP Basic login, with constant-time credential checks.
 - Cross-site request protection: state-changing requests from other websites are rejected, using the `Sec-Fetch-Site` and `Origin` headers.
 - Optional `ALLOWED_HOSTS` allow-list to block DNS-rebinding attacks.
@@ -226,6 +269,8 @@ NetWatch is designed to run on a trusted home or lab network. It ships with thes
   | h11 | CVE-2025-43859 | Lenient chunked-encoding parsing (request smuggling) | 0.16.0 |
   | scapy | GHSA-cq46-m9x9-j8w2 | Unsafe deserialization of session files | 2.7.0 |
 
+  `cryptography` (used for HTTPS certificates) was added later at 50.0.2, with no known vulnerabilities at the time.
+
 To re-check at any time:
 
 ```bash
@@ -236,6 +281,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 
 **Recommendations**
 - Set `WEB_PASSWORD` and `ALLOWED_HOSTS`.
+- Install the self-signed certificate on your devices (or use your own), so you'd notice if a different certificate ever appeared.
 - Don't port-forward the dashboard to the internet. For remote access, use a VPN (WireGuard, Tailscale) or a reverse proxy with TLS and authentication.
 - Rebuild regularly with `docker compose build --pull` to pick up base-image security fixes.
 - Use a long, random ntfy topic, or a self-hosted ntfy server with access tokens.
@@ -269,6 +315,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `POST` | `/api/scan` | Trigger a scan now |
 | `POST` | `/api/test-notification` | Send a test alert |
 | `GET` | `/healthz` | Unauthenticated health check (used by Docker) |
+| `GET` | `/netwatch.crt` | The server's public certificate (unauthenticated) |
 
 ---
 
@@ -282,6 +329,9 @@ netwatch/
 │   ├── scanner.py       # ARP sweeps, probes, hostname and vendor lookup
 │   ├── notifier.py      # ntfy, Pushover and SMTP delivery
 │   ├── security.py      # Login, CSRF/Host checks, security headers
+│   ├── serve.py         # Entry point: HTTPS server + HTTP redirect
+│   ├── tls.py           # Self-signed certificate creation/renewal
+│   ├── healthcheck.py   # Docker health check
 │   ├── router_linksys.py  # Optional Linksys JNAP integration (reservations)
 │   ├── db.py            # SQLite storage
 │   ├── config.py        # Environment-variable configuration
@@ -297,4 +347,4 @@ netwatch/
 
 ## Tech stack
 
-Python 3.13 · FastAPI · Uvicorn · Scapy · netaddr · SQLite · vanilla HTML/JS
+Python 3.13 · FastAPI · Uvicorn · Scapy · netaddr · cryptography · SQLite · vanilla HTML/JS

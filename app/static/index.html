@@ -95,6 +95,7 @@
     <div>Known <b id="s-known">–</b></div>
     <div>Free IPs <b id="s-free">–</b></div>
     <div>Last scan <b id="s-scan">–</b></div>
+    <div id="s-tls"></div>
   </div>
   <div style="display:flex;gap:8px">
     <button id="btn-scan">Scan now</button>
@@ -217,6 +218,11 @@ function render() {
   $("#s-online").textContent = st.online; $("#s-known").textContent = st.known;
   $("#s-free").textContent = state.ips.filter(i => i.status === "free").length;
   $("#s-scan").textContent = st.last_scan ? `${dur(st.now - st.last_scan)} ago` : "pending";
+  const t = st.tls || {};
+  $("#s-tls").innerHTML = location.protocol === "https:"
+    ? `<span title="${esc(t.issuer ? `Certificate: ${t.issuer}\nSHA-256: ${t.sha256}\nValid until ${ts(t.expires)}\nNames: ${(t.names || []).join(", ")}` : "")}">🔒 <b>HTTPS</b></span>` +
+      (t.mode === "self-signed" ? ` · <a href="/netwatch.crt" style="color:var(--accent)">certificate</a>` : "")
+    : `<span style="color:var(--amber)" title="Login and data are sent unencrypted">⚠ <b>HTTP</b></span>`;
   const rt = st.router || {};
   showErr([st.last_error && "Last scan failed: " + st.last_error,
            rt.enabled && rt.error && "Router sync failed: " + rt.error].filter(Boolean).join(" · "));

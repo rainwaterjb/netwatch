@@ -16,6 +16,7 @@ from .monitor import Monitor
 from .notifier import Notifier
 from .router_linksys import LinksysRouter, RouterError
 from .security import SecurityMiddleware
+from . import tls
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"),
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -49,6 +50,39 @@ def healthz():
     return {"ok": True}
 
 
+def _cert_path():
+    if cfg.tls_mode == "custom":
+        return cfg.tls_cert_file
+    if cfg.tls_mode == "self-signed":
+        return os.path.join(cfg.tls_dir, "netwatch.crt")
+    return None
+
+
+@app.get("/netwatch.crt")
+def certificate():
+    """Public certificate, so you can install it as trusted on your devices."""
+    path = _cert_path()
+    if not path or not os.path.exists(path):
+        raise HTTPException(404, "No certificate (HTTPS is off)")
+    return FileResponse(path, media_type="application/x-x509-ca-cert", filename="netwatch.crt")
+
+
+_tls_cache = {}
+
+
+def _tls_status():
+    path = _cert_path()
+    if not path or not os.path.exists(path):
+        return {"mode": cfg.tls_mode}
+    mtime = os.path.getmtime(path)
+    if _tls_cache.get("mtime") != mtime:
+        try:
+            _tls_cache.update(mtime=mtime, info=tls.describe(path))
+        except Exception:
+            _tls_cache.update(mtime=mtime, info={})
+    return {"mode": cfg.tls_mode, **_tls_cache["info"]}
+
+
 @app.get("/")
 def index():
     return FileResponse(STATIC / "index.html")
@@ -71,6 +105,7 @@ def status():
         "phone_enabled": notifier.phone_enabled,
         "email_enabled": notifier.email_enabled,
         "router": _router_status(),
+        "tls": _tls_status(),
     }
 
 
