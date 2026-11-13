@@ -1,17 +1,73 @@
 #!/bin/sh
-# Pull the latest NetWatch code and rebuild/restart the container.
-# Your .env and data volume are untouched (.env is not tracked by Git).
+# Update NetWatch, or switch to a specific release (roll back or forward).
+#
+#   ./update.sh            update to the latest version (main branch)
+#   ./update.sh v1.2.0     switch to release v1.2.0
+#   ./update.sh --list     list releases and show which one is running
+#
+# Your .env and data volume are never touched (.env is not tracked by Git).
 set -eu
-cd "$(dirname "$0")"
 
-echo "==> Fetching latest code"
-git pull --ff-only
+# Run from a temporary copy, so checking out another version can't change
+# this script while it's running.
+if [ -z "${NETWATCH_UPDATE_DIR:-}" ]; then
+  NETWATCH_UPDATE_DIR=$(cd "$(dirname "$0")" && pwd)
+  export NETWATCH_UPDATE_DIR
+  tmp=$(mktemp)
+  cp "$0" "$tmp"
+  trap 'rm -f "$tmp"' EXIT
+  sh "$tmp" "$@"
+  exit $?
+fi
+cd "$NETWATCH_UPDATE_DIR"
 
-echo "==> Rebuilding image (pulling base-image security updates)"
-docker compose build --pull
+current() { git describe --tags --always 2>/dev/null; }
+
+echo "==> Fetching releases"
+git fetch --quiet --tags --prune --prune-tags origin
+
+case "${1:-}" in
+  -l|--list)
+    echo "Available releases (newest first):"
+    git tag -l 'v*' --sort=-v:refname --format='  %(refname:short)  %(creatordate:short)  %(contents:subject)'
+    echo "Currently running: $(current)"
+    exit 0 ;;
+  -h|--help)
+    sed -n '2,8p' "$0"; exit 0 ;;
+esac
+
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "Local changes to tracked files found; refusing to switch versions:" >&2
+  git status --short --untracked-files=no >&2
+  echo "Undo them with: git checkout -- .   (your .env is not affected)" >&2
+  exit 1
+fi
+
+before=$(current)
+if [ -z "${1:-}" ]; then
+  echo "==> Updating to the latest version"
+  git checkout --quiet main
+  git pull --quiet --ff-only origin main
+else
+  if ! git rev-parse --quiet --verify "refs/tags/$1^{commit}" >/dev/null; then
+    echo "Unknown release '$1'. Run ./update.sh --list to see releases." >&2
+    exit 1
+  fi
+  echo "==> Switching to release $1"
+  git -c advice.detachedHead=false checkout --quiet "$1"
+fi
+version=$(current)
+
+echo "==> Building $version (pulling base-image security updates)"
+docker compose build --pull --build-arg NETWATCH_VERSION="$version"
 
 echo "==> Restarting"
 docker compose up -d
 
 docker compose ps
-echo "==> Done. Logs: docker compose logs -f"
+echo "==> Done: $before -> $version"
+if [ -n "${1:-}" ]; then
+  # Releases before v1.3.1 ship an older update.sh that can't switch versions,
+  # so check out main first; that works from every version.
+  echo "    To return to the latest version later: git checkout main && ./update.sh"
+fi

@@ -67,9 +67,23 @@ Useful commands:
 
 ```bash
 docker compose logs -f                         # watch scans and alerts
-./update.sh                                    # git pull + rebuild + restart
+./update.sh                                    # update to the latest release (see Releases and rollback)
 docker cp netwatch:/data/netwatch.db ./backup.db      # back up device names and alert settings
 ```
+
+### Releases and rollback
+
+Every version is published as a [GitHub release](../../releases) and a Git tag (`v1.0.0`, `v1.1.0`, …). See [CHANGELOG.md](CHANGELOG.md) for what changed in each. The running version is shown in the dashboard header.
+
+```bash
+./update.sh --list                    # list releases and show which one is running
+./update.sh v1.2.0                    # switch to a specific release (roll back)
+git checkout main && ./update.sh      # go back to the latest version
+```
+
+After rolling back to a release older than v1.3.1, that release's own `update.sh` can't switch versions. Run `git checkout main` first, as shown above; this works from any version.
+
+Switching versions keeps your `.env` and data: device names, alert settings and history. All versions share the same database format. If a newer version needs a setting that an older one doesn't have, the older version simply ignores it.
 
 ### Running on Proxmox
 
@@ -339,7 +353,8 @@ netwatch/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt     # Fully pinned, audited dependencies
-├── update.sh            # Pull latest code, rebuild and restart
+├── update.sh            # Update, or switch to any release (rollback)
+├── CHANGELOG.md         # What changed in each release
 ├── .env.example         # Configuration template (copy to .env)
 ├── .gitignore
 └── .dockerignore

@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY app ./app
 
+# Version shown in the dashboard (set by update.sh from the Git tag)
+ARG NETWATCH_VERSION=dev
+
 # Run as an unprivileged user. Python gets only the NET_RAW file capability,
 # which is all that ARP scanning needs. pip/libcap are removed afterwards so
 # nothing else in the image can change capabilities.
@@ -25,6 +28,7 @@ RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin netw
  && rm -rf /var/lib/apt/lists/*
 
 ENV DB_PATH=/data/netwatch.db \
+    NETWATCH_VERSION=${NETWATCH_VERSION} \
     PORT=8080 \
     HTTPS_PORT=8443 \
     PYTHONUNBUFFERED=1 \

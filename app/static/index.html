@@ -214,7 +214,7 @@ function showErr(msg) { const b = $("#err"); b.textContent = msg; b.style.displa
 
 function render() {
   const st = state.status;
-  $("#subnet").textContent = [st.subnet, st.interface].filter(Boolean).join(" · ");
+  $("#subnet").textContent = [st.version, st.subnet, st.interface].filter(Boolean).join(" · ");
   $("#s-online").textContent = st.online; $("#s-known").textContent = st.known;
   $("#s-free").textContent = state.ips.filter(i => i.status === "free").length;
   $("#s-scan").textContent = st.last_scan ? `${dur(st.now - st.last_scan)} ago` : "pending";

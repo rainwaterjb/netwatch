@@ -106,6 +106,7 @@ def status():
         "email_enabled": notifier.email_enabled,
         "router": _router_status(),
         "tls": _tls_status(),
+        "version": os.getenv("NETWATCH_VERSION", "dev"),
     }
 
 
