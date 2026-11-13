@@ -4,6 +4,12 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.4.0 (2026-11-13): Mobile-friendly dashboard
+- Responsive layout that works on phones and tablets. On narrow screens, the device, reservation and activity tables become stacked cards, and the header stats become compact tiles.
+- Larger tap targets on touch screens, a horizontally scrolling tab bar, and a sort menu on phones (where column headers are hidden).
+- Tap an IP-map cell or the HTTPS badge to see its details, since touch screens have no hover.
+- Form fields no longer zoom the page on iPhone when tapped.
+
 ## v1.3.1 (2026-11-12)
 - Releases: every version is now tagged and published as a GitHub release.
 - `update.sh` can switch to any release (`./update.sh v1.2.0`) and list them (`./update.sh --list`).

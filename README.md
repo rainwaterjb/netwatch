@@ -20,6 +20,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Router integration** *(optional)* | For Linksys Velop/Atlas routers: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses the names from your router. Optionally add and remove DHCP reservations from a **Reservations** tab. |
 | **Phone notifications** | Through [ntfy](https://ntfy.sh) (free, open source, can be self-hosted) and/or [Pushover](https://pushover.net). |
 | **Email notifications** | Through any SMTP server (your mail provider, Gmail with an app password, a self-hosted relay, etc.). |
+| **Works on mobile** | The dashboard adapts to phones and tablets: tables become cards, with touch-friendly controls. |
 | **REST API** | Everything in the dashboard is available as JSON, with interactive docs at `/docs`. |
 
 ---

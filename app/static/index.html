@@ -64,6 +64,8 @@
   .card h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
   .form { display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.5fr auto; gap: 10px; align-items: end; }
   .form label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
+  .form label { min-width: 0; }
+  .form input, .form select { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
   .form input, .form select { background: var(--bg); border: 1px solid var(--line); color: var(--text);
           border-radius: 6px; padding: 7px 9px; font: inherit; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
@@ -85,6 +87,91 @@
   #toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel); border: 1px solid var(--line);
            padding: 10px 14px; border-radius: 8px; display: none; max-width: 420px; }
   @media (max-width: 800px) { .hide-sm { display: none; } input[type=search] { width: 100%; } }
+  .hdr-actions { display: flex; gap: 8px; }
+  .mobile-only { display: none; }
+  select#sort-sel { background: var(--panel); border: 1px solid var(--line); color: var(--text);
+                    border-radius: 6px; padding: 7px 9px; font: inherit; }
+  #toast { white-space: pre-line; }
+  nav { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { white-space: nowrap; flex: 0 0 auto; }
+
+  /* Touch screens: larger tap targets */
+  @media (pointer: coarse) {
+    button, nav button { min-height: 40px; }
+    input[type=checkbox] { width: 20px; height: 20px; }
+    .alerts label { padding: 4px 0; font-size: 13px; }
+  }
+
+  /* Phones and narrow windows */
+  @media (max-width: 760px) {
+    body { font-size: 15px; }
+    header { padding: 12px 14px; gap: 10px; }
+    header h1 { width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+    header h1 span { margin-left: 0; font-size: 12px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+    .stats > div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+    .stats > div b { display: block; font-size: 16px; }
+    .stats > #s-tls { grid-column: 1 / -1; padding: 6px 10px; }
+    .stats > #s-tls b { display: inline; font-size: inherit; }
+    .hdr-actions { width: 100%; }
+    .hdr-actions button { flex: 1; }
+    main { padding: 10px 12px 40px; }
+    nav { margin-bottom: 12px; }
+    nav button { padding: 10px 12px; }
+    .toolbar { gap: 10px; }
+    .toolbar input[type=search] { width: 100%; }
+    .mobile-only { display: block; }
+    input, select { font-size: 16px; }   /* stops iOS zooming in on focus */
+    .grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); }
+    .cell { height: 38px; }
+    .legend { gap: 6px 14px; font-size: 12px; }
+    #toast { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+    .card { padding: 12px; }
+
+    /* Tables become stacked cards */
+    table.cards, table.cards tbody { display: block; background: none; border: none; }
+    table.cards thead { display: none; }
+    table.cards tr { display: grid; gap: 4px 10px; background: var(--panel); border: 1px solid var(--line);
+                     border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    table.cards td { display: block; padding: 0; border: none; min-width: 0; overflow-wrap: anywhere; }
+    table.cards tr.empty { display: block; }
+    table.cards .hide-sm { display: block; }
+
+    table.devices tr { grid-template-columns: 14px 1fr auto;
+      grid-template-areas: "dot name up" ". ip ip" ". mac mac" ". alerts alerts" ". act act"; }
+    table.devices .c-dot { grid-area: dot; padding-top: 6px; }
+    table.devices .c-name { grid-area: name; font-weight: 600; }
+    table.devices .c-name .sub { font-weight: 400; }
+    table.devices .c-up { grid-area: up; text-align: right; font-size: 13px; }
+    table.devices .c-up .sub { font-size: 11px; }
+    table.devices .c-ip { grid-area: ip; }
+    table.devices .c-mac { grid-area: mac; color: var(--muted); font-size: 12px; }
+    table.devices .c-first { display: none !important; }
+    table.devices .c-alerts { grid-area: alerts; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+    table.devices .c-alerts .alerts { gap: 4px 16px; }
+    table.devices .c-act { grid-area: act; display: flex; gap: 8px; justify-content: flex-end; }
+    table.devices .c-act:empty { display: none; }
+
+    table.res tr { grid-template-columns: 1fr auto;
+      grid-template-areas: "desc st" "ip ip" "mac mac" "dev dev" "act act"; }
+    table.res .r-desc { grid-area: desc; font-weight: 600; }
+    table.res .r-st { grid-area: st; }
+    table.res .r-ip { grid-area: ip; }
+    table.res .r-mac { grid-area: mac; color: var(--muted); font-size: 12px; }
+    table.res .r-dev { grid-area: dev; color: var(--muted); font-size: 13px; }
+    table.res .r-dev:empty { display: none; }
+    table.res .r-act { grid-area: act; display: flex; justify-content: flex-end; }
+    table.res .r-act:empty { display: none; }
+
+    table.events tr { grid-template-columns: 1fr auto; padding: 10px 12px; margin-bottom: 8px;
+      grid-template-areas: "kind time" "dev ip" "detail detail"; }
+    table.events .e-kind { grid-area: kind; font-weight: 600; }
+    table.events .e-time { grid-area: time; text-align: right; font-size: 12px; }
+    table.events .e-dev { grid-area: dev; }
+    table.events .e-ip { grid-area: ip; text-align: right; }
+    table.events .e-detail { grid-area: detail; }
+  }
 </style>
 </head>
 <body>
@@ -97,7 +184,7 @@
     <div>Last scan <b id="s-scan">–</b></div>
     <div id="s-tls"></div>
   </div>
-  <div style="display:flex;gap:8px">
+  <div class="hdr-actions">
     <button id="btn-scan">Scan now</button>
     <button id="btn-test">Send test alert</button>
   </div>
@@ -116,8 +203,14 @@
       <input type="search" id="filter" placeholder="Filter by name, IP, MAC, vendor…">
       <label class="chk"><input type="checkbox" id="show-offline" checked> Show offline</label>
       <label class="chk"><input type="checkbox" id="only-watched"> Only watched</label>
+      <select id="sort-sel" class="mobile-only" aria-label="Sort devices">
+        <option value="ip">Sort: IP address</option>
+        <option value="name">Sort: Name</option>
+        <option value="uptime">Sort: Connected time</option>
+        <option value="first_seen">Sort: First seen</option>
+      </select>
     </div>
-    <table>
+    <table class="cards devices">
       <thead><tr>
         <th data-sort="online"></th>
         <th data-sort="name">Device</th>
@@ -164,14 +257,14 @@
       <div class="note" id="rf-note"></div>
     </div>
     <p class="info" id="res-info"></p>
-    <table>
+    <table class="cards res">
       <thead><tr><th>Description</th><th>Reserved IP</th><th>MAC</th><th>Device</th><th>Status</th><th></th></tr></thead>
       <tbody id="res-body"></tbody>
     </table>
   </section>
 
   <section id="tab-events" class="hidden">
-    <table>
+    <table class="cards events">
       <thead><tr><th>Time</th><th>Event</th><th>Device</th><th>IP</th><th>Detail</th></tr></thead>
       <tbody id="ev-body"></tbody>
     </table>
@@ -250,24 +343,24 @@ function renderDevices() {
       ${d[f] ? "checked" : ""} ${enabled ? "" : "disabled"}> ${text}</label>`;
   $("#dev-body").innerHTML = rows.map(d => `
     <tr class="${d.online ? "" : "off"}">
-      <td><span class="dot ${d.online ? "on" : "off"}" title="${d.online ? "Online" : "Offline"}"></span></td>
-      <td><div class="name" data-mac="${d.mac}" title="Click to rename">${esc(devName(d))}</div>
+      <td class="c-dot"><span class="dot ${d.online ? "on" : "off"}" title="${d.online ? "Online" : "Offline"}"></span></td>
+      <td class="c-name"><div class="name" data-mac="${d.mac}" title="Click to rename">${esc(devName(d))}</div>
           <div class="sub">${esc([(d.nickname || d.router_name) && d.hostname, d.vendor].filter(Boolean).join(" · "))}</div></td>
-      <td class="mono">${esc(d.ip)}${d.reserved_ip ? (d.reserved_ip === d.ip
+      <td class="mono c-ip">${esc(d.ip)}${d.reserved_ip ? (d.reserved_ip === d.ip
           ? '<span class="chip" title="DHCP reservation on the router">reserved</span>'
           : `<span class="chip warn" title="Router has a reservation for this device at a different IP">reserved ${esc(d.reserved_ip)}</span>`) : ""}</td>
-      <td class="mono hide-sm">${esc(d.mac)}</td>
-      <td>${d.online ? `<b>${dur(now - d.online_since)}</b><div class="sub">since ${ts(d.online_since)}</div>`
+      <td class="mono hide-sm c-mac">${esc(d.mac)}</td>
+      <td class="c-up">${d.online ? `<b>${dur(now - d.online_since)}</b><div class="sub">since ${ts(d.online_since)}</div>`
                      : `Offline<div class="sub">last seen ${ts(d.last_seen)}</div>`}</td>
-      <td class="hide-sm sub">${ts(d.first_seen)}</td>
-      <td><div class="alerts">
+      <td class="hide-sm sub c-first">${ts(d.first_seen)}</td>
+      <td class="c-alerts"><div class="alerts">
         ${chk(d, "notify_phone", st.phone_enabled, "Phone", st.phone_enabled ? "Push notification" : "Set NTFY_URL or Pushover keys to enable")}
         ${chk(d, "notify_email", st.email_enabled, "Email", st.email_enabled ? "Email alert" : "Set SMTP_* settings to enable")}
         ${chk(d, "notify_return", !!(d.notify_phone || d.notify_email), "+ when back", "Also alert when it reconnects")}
       </div></td>
-      <td style="white-space:nowrap">${(st.router || {}).can_change && !d.reserved_ip
+      <td class="c-act">${(st.router || {}).can_change && !d.reserved_ip
           ? `<button data-reserve="${d.mac}" title="Create a DHCP reservation on the router">Reserve</button> ` : ""}<button class="danger" data-forget="${d.mac}" title="Remove from history">Forget</button></td>
-    </tr>`).join("") || `<tr><td colspan="8" class="sub">No devices yet. The first scan runs at startup.</td></tr>`;
+    </tr>`).join("") || `<tr class="empty"><td colspan="8" class="sub">No devices yet. The first scan runs at startup.</td></tr>`;
 }
 
 function renderIps() {
@@ -290,9 +383,9 @@ function renderEvents() {
   const byMac = Object.fromEntries(state.devices.map(d => [d.mac, d]));
   const names = { new: "New device", online: "Online", offline: "Offline", ip_change: "IP changed", reservation: "Reservation" };
   $("#ev-body").innerHTML = state.events.map(e => `
-    <tr><td class="sub">${ts(e.ts)}</td><td class="k-${e.kind}">${names[e.kind] || e.kind}</td>
-        <td>${esc(byMac[e.mac] ? devName(byMac[e.mac]) : e.mac)}</td><td class="mono">${esc(e.ip)}</td>
-        <td class="sub">${esc(e.detail)}</td></tr>`).join("") || `<tr><td colspan="5" class="sub">No activity yet.</td></tr>`;
+    <tr><td class="sub e-time">${ts(e.ts)}</td><td class="k-${e.kind} e-kind">${names[e.kind] || e.kind}</td>
+        <td class="e-dev">${esc(byMac[e.mac] ? devName(byMac[e.mac]) : e.mac)}</td><td class="mono e-ip">${esc(e.ip)}</td>
+        <td class="sub e-detail">${esc(e.detail)}</td></tr>`).join("") || `<tr class="empty"><td colspan="5" class="sub">No activity yet.</td></tr>`;
 }
 
 // Events
@@ -354,14 +447,14 @@ function renderRes() {
   $("#res-body").innerHTML = state.res.map(r => {
     const [cls, txt] = resStatus(r);
     return `<tr>
-      <td>${esc(r.description || "—")}</td>
-      <td class="mono">${esc(r.ip)}</td>
-      <td class="mono">${esc(r.mac)}</td>
-      <td>${esc(r.device_name || "")}${r.last_seen && r.state === "offline" ? `<div class="sub">last seen ${ts(r.last_seen)}</div>` : ""}</td>
-      <td><span class="st ${cls}">${esc(txt)}</span></td>
-      <td>${rt.can_change ? `<button class="danger" data-unreserve="${esc(r.mac)}" data-ip="${esc(r.ip)}" data-desc="${esc(r.description || r.mac)}">Remove</button>` : ""}</td>
+      <td class="r-desc">${esc(r.description || "—")}</td>
+      <td class="mono r-ip">${esc(r.ip)}</td>
+      <td class="mono r-mac">${esc(r.mac)}</td>
+      <td class="r-dev">${esc(r.device_name || "")}${r.last_seen && r.state === "offline" ? `<div class="sub">last seen ${ts(r.last_seen)}</div>` : ""}</td>
+      <td class="r-st"><span class="st ${cls}">${esc(txt)}</span></td>
+      <td class="r-act">${rt.can_change ? `<button class="danger" data-unreserve="${esc(r.mac)}" data-ip="${esc(r.ip)}" data-desc="${esc(r.description || r.mac)}">Remove</button>` : ""}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="6" class="sub">No reservations on the router.</td></tr>`;
+  }).join("") || `<tr class="empty"><td colspan="6" class="sub">No reservations on the router.</td></tr>`;
 
   // form
   const can = !!rt.can_change;
@@ -430,6 +523,14 @@ function errText(e) {
   const m = String(e.message || e).match(/^\d+ (.*)$/s);
   try { return JSON.parse(m[1]).detail; } catch { return String(e.message || e); }
 }
+
+// Mobile helpers
+$("#sort-sel").addEventListener("change", e => { state.sort = e.target.value; state.dir = 1; renderDevices(); });
+// No hover on touch screens: tap an IP cell or the HTTPS badge to see its details.
+$("#ip-grid").addEventListener("click", e => { const c = e.target.closest(".cell"); if (c) toast(c.title); });
+$("#s-tls").addEventListener("click", e => {
+  const t = e.target.closest("[title]"); if (t && t.title && matchMedia("(hover: none)").matches) toast(t.title);
+});
 
 refresh();
 setInterval(refresh, 10000);
