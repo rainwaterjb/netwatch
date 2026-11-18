@@ -119,6 +119,27 @@ class PiholeClient:
                     out[ip].append((float(ts), int(count)))
         return out
 
+    def network_top(self, blocked, count):
+        """Pi-hole's own top-domain list (its in-memory window, normally 24 hours)."""
+        data = self.get("/api/stats/top_domains", {"count": count, "blocked": "true" if blocked else "false"})
+        out = Counter()
+        for d in data.get("domains") or []:
+            if d.get("domain") and isinstance(d.get("count"), (int, float)):
+                out[d["domain"]] += int(d["count"])
+        return out, int(data.get("total_queries") or 0), int(data.get("blocked_queries") or 0)
+
+    def domain_clients(self, domain, since, length=5000):
+        data = self.get("/api/queries", {"domain": domain, "from": int(since), "length": length})
+        counts = Counter()
+        for q in data.get("queries") or []:
+            if q.get("domain") and q["domain"] != domain:     # in case the filter isn't supported
+                continue
+            client = q.get("client")
+            ip = client.get("ip") if isinstance(client, dict) else client
+            if ip:
+                counts[ip] += 1
+        return counts
+
     def top_domains(self, ip, since, length=2000):
         data = self.get("/api/queries", {"client_ip": ip, "from": int(since), "length": length})
         counts = Counter()
@@ -214,6 +235,47 @@ class PiholeIntegration:
     def stats_for(self, ip):
         with self.lock:
             return self.stats.get(ip)
+
+    def network_top(self, count=50):
+        """Top allowed and blocked domains across every Pi-hole, cached for a minute."""
+        key = ("net", count)
+        cached = self._domain_cache.get(key)
+        if cached and time.time() - cached[0] < 60:
+            return cached[1]
+        allowed, blocked, errors = Counter(), Counter(), []
+        total = blocked_total = 0
+        for c in self.clients:
+            try:
+                a, t, b = c.network_top(False, count)
+                bl, _, _ = c.network_top(True, count)
+                allowed.update(a); blocked.update(bl); total += t; blocked_total += b
+            except PiholeError as e:
+                errors.append(str(e))
+        result = {"allowed": [{"domain": d, "count": n} for d, n in allowed.most_common(count)],
+                  "blocked": [{"domain": d, "count": n} for d, n in blocked.most_common(count)],
+                  "total_queries": total, "blocked_queries": blocked_total,
+                  "servers": [c.host for c in self.clients], "errors": errors, "fetched": time.time()}
+        self._domain_cache[key] = (time.time(), result)
+        return result
+
+    def domain_clients(self, domain, hours=24):
+        counts, errors = Counter(), []
+        since = time.time() - hours * 3600
+        for c in self.clients:
+            try:
+                counts.update(c.domain_clients(domain, since))
+            except PiholeError as e:
+                errors.append(str(e))
+        return {"clients": [{"ip": ip, "count": n} for ip, n in counts.most_common(25)],
+                "sampled": sum(counts.values()), "errors": errors}
+
+    def total_hourly(self):
+        """DNS queries per hour across every client for the last 24h, oldest first."""
+        with self.lock:
+            series = [s["hourly"] for s in self.stats.values() if s.get("hourly")]
+        if not series:
+            return None
+        return [sum(col) for col in zip(*series)]
 
     def top_domains(self, ip, hours=24, limit=15):
         key = (ip, hours)

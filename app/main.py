@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
 from . import history as dev_history
+from . import timeline as dash_timeline
 from . import wol
 from .alerts import CHANNEL_CHOICES, DEFAULT_SETTINGS, AlertManager, in_quiet_hours, validate_time
 from .config import Config
@@ -559,6 +560,44 @@ def run_check(check_id: int = Path(ge=1)):
 def internet(days: int = Query(30, ge=1, le=365)):
     now = time.time()
     return {"status": wan.status(now), "outages": store.outages(limit=200, since=now - days * 86400)}
+
+
+DOMAIN_RE = re.compile(r"^(?=.{1,253}$)[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?$")
+
+
+def _need_pihole():
+    if not pihole.enabled:
+        raise HTTPException(404, "Pi-hole integration is not configured")
+
+
+@app.get("/api/dns/top")
+def dns_top(count: int = Query(50, ge=5, le=200)):
+    _need_pihole()
+    return pihole.network_top(count)
+
+
+@app.get("/api/dns/domain")
+def dns_domain(name: str = Query(..., max_length=253)):
+    """Which devices looked up one domain in the last 24 hours."""
+    _need_pihole()
+    name = name.strip().lower().rstrip(".")
+    if not DOMAIN_RE.match(name) or ".." in name:
+        raise HTTPException(400, "Not a valid domain name")
+    result = pihole.domain_clients(name)
+    by_ip = {d["ip"]: d for d in store.all_devices() if d.get("ip")}
+    for c in result["clients"]:
+        d = by_ip.get(c["ip"])
+        c["mac"] = d["mac"] if d else None
+        c["name"] = display_name(d, router) if d else None
+    return {"domain": name, **result}
+
+
+@app.get("/api/timeline")
+def timeline(hours: int = Query(24)):
+    if hours not in dash_timeline.RANGES:
+        raise HTTPException(400, f"hours must be one of {', '.join(map(str, dash_timeline.RANGES))}")
+    return dash_timeline.build(store, router, pihole, hours, time.time(),
+                               internet_enabled=wan.enabled)
 
 
 @app.delete("/api/devices/{mac}")

@@ -11,6 +11,8 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 
 | | |
 |---|---|
+| **Overview dashboard** | One screen with the state of everything: internet, devices, services, free addresses and DNS; a **Needs attention** list; a live activity feed that can hide brief blips; the address map; and service checks with trend lines. |
+| **Timeline** | Internet outages, failed service checks, when each device was online, and DNS volume, all lined up on one time axis (6 hours, 24 hours or 7 days), so you can see what happened at the same moment. Filter by tag or show only devices that dropped. |
 | **Device inventory** | Every device that answers on the LAN, with IP address, MAC address, manufacturer (looked up from the MAC), and hostname (via reverse DNS). Give devices friendly names from the dashboard. |
 | **IP address map** | A grid of the whole subnet showing which addresses are in use, which were last used by a device that's currently offline, and which are free. One click copies the list of free addresses. |
 | **Connection time** | How long each device has been connected since it last joined, plus first-seen and last-seen times. |
@@ -21,7 +23,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Tags** | Group devices (`#servers`, `#iot`…), filter by tag, and switch alerts for a whole group at once. |
 | **Service checks** | Watch web pages, TCP ports and ping targets. Get uptime %, response times and down/up alerts. |
 | **Internet outage tracking** | Records when your internet (or router) was down and for how long, with 24h/7d/30d uptime. |
-| **Pi-hole integration** *(optional)* | DNS queries and top domains per device, plus alerts when a device suddenly gets "chatty". |
+| **Pi-hole integration** *(optional)* | DNS queries and top domains per device, a **Top domains** tab for the whole network (allowed and blocked, and which devices looked each one up), plus alerts when a device suddenly gets "chatty". |
 | **Wake-on-LAN** | Wake sleeping devices from the dashboard. |
 | **Export** | Device list as CSV and a full database backup, one click each. |
 | **New-device alerts** | Optionally get notified whenever a device the tool has never seen joins your network. |
@@ -205,6 +207,8 @@ If you use Pi-hole v6 or newer as your DNS server, NetWatch can show, for each d
 - DNS queries in the last 24 hours and the last hour, with an hour-by-hour chart.
 - Its usual hourly volume.
 - Its top domains.
+
+The **Top domains** tab shows the busiest allowed and blocked domains across the whole network, the blocked share, and, when you select a domain, which devices looked it up. Pick a device from the list to see its own top domains instead.
 
 A device is flagged **chatty** when its last hour is far above normal: by default 5× its usual volume, and at least 600 queries. Both thresholds can be changed in Settings. That's often the first sign of a misbehaving IoT device, a stuck app, or malware. You can be alerted when it happens.
 

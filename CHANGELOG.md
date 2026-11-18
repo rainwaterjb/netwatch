@@ -4,6 +4,16 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.7.0 (2026-11-18): New Overview dashboard with a timeline, and a Top domains tab
+- **New Overview tab** (now the home screen), in a darker "control room" look used across the whole dashboard:
+  - A status strip: internet, devices online, services, free addresses and DNS queries.
+  - **Needs attention**: services that are down, critical devices offline, chatty devices and new devices, each with a one-click action.
+  - The **address map** at a glance, **service checks** with trend lines, and a **live activity** feed that can hide brief blips (a device that was back within 5 minutes).
+- **Timeline** on the Overview: internet outages, failed service checks, when each device was online, and DNS lookups per hour, on one shared time axis. Choose 6 hours, 24 hours or 7 days; filter by tag, critical devices, or only devices that dropped off. Select a device to open its details.
+- **New Top domains tab** (when Pi-hole is connected): the busiest allowed and blocked domains across the network, the blocked share, and which devices looked up each domain. Pick a device to see its own top domains. A chatty device's "Top domains" button jumps straight there.
+- New API endpoints: `GET /api/timeline?hours=6|24|168`, `GET /api/dns/top`, `GET /api/dns/domain?name=…`.
+- No database changes; rolling back to v1.6.0 is safe.
+
 ## v1.6.0 (2026-11-18): More routers (OPNsense, pfSense, UniFi, OpenWrt)
 - **Router integration now supports OPNsense, pfSense, UniFi and OpenWrt** as well as Linksys. Choose one with `ROUTER_TYPE`.
   - **OPNsense:** Dnsmasq or Kea DHCP (auto-detected), via API key + secret.

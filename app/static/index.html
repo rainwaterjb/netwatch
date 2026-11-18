@@ -6,12 +6,13 @@
 <title>NetWatch</title>
 <style>
   :root {
-    --bg: #0f1216; --panel: #171b21; --line: #262c35; --text: #e6e9ee; --muted: #8a94a3;
-    --green: #3ecf8e; --red: #f0616d; --amber: #f2b84b; --free: #222831; --accent: #5aa9ff;
+    --bg: #0b0f14; --panel: #11161d; --line: #1f2731; --text: #e6edf3; --muted: #8b98a5;
+    --green: #3fb950; --red: #f85149; --amber: #d29922; --free: #1a212b; --accent: #58a6ff;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+         font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;
            padding: 16px 24px; border-bottom: 1px solid var(--line); }
   h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
@@ -42,7 +43,7 @@
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
   .dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
   .dot.off { background: var(--red); opacity: .7; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .mono { font-family: var(--mono); font-size: 13px; }
   .sub { color: var(--muted); font-size: 12px; }
   .name { cursor: text; border-bottom: 1px dashed transparent; }
   .name:hover { border-bottom-color: var(--muted); }
@@ -247,6 +248,93 @@
     .kv { grid-template-columns: 1fr; gap: 0; } .kv dd { margin-bottom: 6px; }
     .tagedit input { width: 100%; }
   }
+
+  /* Overview (Control Room) */
+  body.on-home header .stats { display: none; }
+  .strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; padding: 10px 14px; min-width: 0; }
+  .tile.good { border-left-color: var(--green); } .tile.bad { border-left-color: var(--red); }
+  .tile.warn { border-left-color: var(--amber); } .tile.muted .t-v { color: var(--muted); }
+  .t-l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .7px; }
+  .t-v { font-size: 22px; font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-v small { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .tile.bad .t-v { color: var(--red); }
+  .t-s { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ov-grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
+  .ov-main { min-width: 0; }
+  .card h3 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h3 .sub { font-weight: 400; }
+  .card h3 .push { margin-left: auto; }
+  ul.attn { list-style: none; margin: 0; padding: 0; }
+  ul.attn li { display: flex; gap: 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+  ul.attn li:first-child { border-top: none; padding-top: 2px; }
+  ul.attn .a-body { flex: 1; min-width: 0; }
+  ul.attn .a-body .sub { overflow-wrap: anywhere; }
+  ul.attn .a-act { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .pill { font: 600 11px var(--mono); padding: 2px 7px; border-radius: 4px; letter-spacing: .5px; min-width: 64px; text-align: center; }
+  .pill.bad { background: rgba(248,81,73,.15); color: var(--red); }
+  .pill.warn { background: rgba(210,153,34,.15); color: var(--amber); }
+  .pill.info { background: rgba(88,166,255,.15); color: var(--accent); }
+  .all-quiet { color: var(--green); }
+  /* timeline */
+  .tl-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 400; }
+  .tl-tools select { background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 8px; font: inherit; }
+  .tl { --lbl: 190px; }
+  .tl-row { display: grid; grid-template-columns: var(--lbl) minmax(0, 1fr) 40px; gap: 10px; align-items: center;
+            min-height: 26px; width: 100%; background: none; border: none; border-radius: 4px; padding: 1px 0;
+            color: inherit; font: inherit; text-align: left; }
+  button.tl-row { cursor: pointer; } button.tl-row:hover { background: rgba(88,166,255,.06); }
+  button.tl-row:focus-visible { outline: 2px solid var(--accent); }
+  .tl-lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; font-size: 13px; }
+  .tl-lbl .mono { color: var(--muted); font-size: 11px; }
+  .tl-lbl .chip { margin-left: 4px; font-size: 10px; }
+  .tl-track { position: relative; height: 10px; border-radius: 3px; }
+  .tl-track.ok { background: rgba(63,185,80,.18); height: 12px; }
+  .tl-track.nodata { background: repeating-linear-gradient(90deg, var(--free) 0 6px, transparent 6px 10px); height: 12px; }
+  .tl-track b { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+  .tl-track b.on { background: var(--accent); opacity: .85; }
+  .tl-track b.down { background: var(--red); min-width: 3px; top: -2px; bottom: -2px; }
+  .tl-track .g { position: absolute; top: -6px; bottom: -6px; width: 1px; background: var(--line); opacity: .7; }
+  .tl-x { font: 11px var(--mono); color: var(--amber); text-align: right; }
+  .tl-axis { position: relative; height: 16px; font: 11px var(--mono); color: var(--muted); }
+  .tl-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+  .tl-sec { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 12px 0 4px; }
+  .tl-dns { display: flex; align-items: flex-end; gap: 2px; height: 48px; border-bottom: 1px solid var(--line); }
+  .tl-dns i { flex: 1; background: var(--muted); opacity: .55; min-height: 1px; border-radius: 1px 1px 0 0; }
+  .tl-dns i.hi { background: var(--amber); opacity: 1; }
+  /* address map + checks + feed */
+  .mini-grid { display: grid; grid-template-columns: repeat(32, minmax(0, 1fr)); gap: 3px; }
+  .mc { aspect-ratio: 1; border-radius: 2px; background: var(--free); cursor: pointer; }
+  .mc.online { background: var(--green); opacity: .8; } .mc.offline { background: var(--amber); opacity: .6; }
+  .mc.reserved { background: #a371f7; opacity: .7; } .mc.static-ok { box-shadow: inset 0 0 0 1px rgba(63,185,80,.6); }
+  table.mini { border: none; background: none; }
+  table.mini td { padding: 7px 8px; }
+  table.mini td:first-child { padding-left: 0; } table.mini td:last-child { padding-right: 0; }
+  .ov-feed { position: sticky; top: 12px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
+  ul.feed { list-style: none; margin: 8px 0 0; padding: 0; overflow-y: auto; font-size: 13px; }
+  ul.feed li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 2px 8px; padding: 7px 0; border-top: 1px solid var(--line); }
+  ul.feed .f-t { font: 11px var(--mono); color: var(--muted); padding-top: 2px; }
+  ul.feed .f-d { grid-column: 2; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  @media (max-width: 1100px) { .ov-grid { grid-template-columns: 1fr; } .ov-feed { position: static; max-height: 480px; } }
+  @media (max-width: 900px) { .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 760px) {
+    .strip { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tl { --lbl: 112px; }
+    .tl-row { gap: 6px; grid-template-columns: var(--lbl) minmax(0, 1fr) 28px; }
+    .tl-axis span:nth-child(even) { display: none; }
+    .mini-grid { grid-template-columns: repeat(16, minmax(0, 1fr)); }
+    ul.attn li { flex-wrap: wrap; } ul.attn .a-act { width: 100%; justify-content: flex-start; }
+    table.mini .hide-sm { display: none; }
+  }
+  table.dom td { padding: 7px 12px; }
+  table.dom tr.drow { cursor: pointer; } table.dom tr.drow:hover td { background: rgba(88,166,255,.05); }
+  table.dom tr.drow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  table.dom .dbar { height: 6px; background: var(--free); border-radius: 3px; overflow: hidden; }
+  table.dom .dbar i { display: block; height: 100%; background: var(--accent); }
+  table.dom.blocked .dbar i { background: var(--red); }
+  table.dom tr.dsub td { background: var(--bg); font-size: 13px; }
+  table.dom tr.dsub ul.plain { max-width: 560px; }
+  @media (max-width: 760px) { table.dom th:first-child, table.dom td:first-child { display: none; } table.dom .domain { font-size: 12px; } }
 </style>
 </head>
 <body>
@@ -270,15 +358,66 @@
   <div class="banner" id="err"></div>
   <div class="notice" id="notice"></div>
   <nav>
-    <button data-tab="devices" class="active">Devices</button>
+    <button data-tab="home" class="active">Overview</button>
+    <button data-tab="devices">Devices</button>
     <button data-tab="ips">IP addresses</button>
     <button data-tab="svc">Services</button>
     <button data-tab="res" id="nav-res" style="display:none">Reservations</button>
+    <button data-tab="dns" id="nav-dns" style="display:none">Top domains</button>
     <button data-tab="events">Activity</button>
     <button data-tab="set">Settings</button>
   </nav>
 
-  <section id="tab-devices">
+  <section id="tab-home">
+    <div class="strip" id="ov-strip"></div>
+    <div class="ov-grid">
+      <div class="ov-main">
+        <div class="card"><h3>Needs attention</h3><ul class="attn" id="ov-attn"></ul></div>
+        <div class="card">
+          <h3>Timeline
+            <span class="tl-tools push">
+              <span class="seg" id="tl-range" role="group" aria-label="Time range"></span>
+              <select id="tl-tag" aria-label="Filter devices by tag"><option value="">All devices</option></select>
+              <label class="chk"><input type="checkbox" id="tl-drops"> Only ones that dropped</label>
+            </span>
+          </h3>
+          <div class="tl" id="tl"></div>
+          <p class="note">Blue bars show when each device was online; red marks are outages and failed checks. Hover for times, or select a device for its full history.</p>
+        </div>
+        <div class="card"><h3>Address space <span class="sub" id="ov-ips-sub"></span><button class="push" data-goto="ips">Open</button></h3>
+          <div class="mini-grid" id="ov-ips"></div>
+          <div class="legend" style="margin:10px 0 0"><span><i style="background:var(--green)"></i>Online</span><span><i style="background:var(--amber)"></i>Offline</span>
+            <span><i style="background:#a371f7"></i>Reserved, not seen</span><span><i style="background:var(--free)"></i>Free</span></div>
+        </div>
+        <div class="card"><h3>Service checks <button class="push" data-goto="svc">Manage</button></h3><div id="ov-svc"></div></div>
+      </div>
+      <aside class="card ov-feed" aria-labelledby="feed-h">
+        <h3 id="feed-h">Live activity</h3>
+        <label class="chk"><input type="checkbox" id="ov-blips" checked> Hide brief blips (back within 5 min)</label>
+        <ul class="feed" id="ov-feed"></ul>
+      </aside>
+    </div>
+  </section>
+
+  <section id="tab-dns" class="hidden">
+    <div class="toolbar">
+      <span class="seg" id="dns-kind" role="group" aria-label="Allowed or blocked">
+        <button data-k="allowed" class="on" aria-pressed="true">Allowed</button><button data-k="blocked" aria-pressed="false">Blocked</button>
+      </span>
+      <select id="dns-dev" class="sel" aria-label="Device"><option value="">Whole network</option></select>
+      <input type="search" id="dns-q" placeholder="Filter domains" aria-label="Filter domains">
+      <span class="grow"></span>
+      <button id="dns-reload">Refresh</button>
+    </div>
+    <div class="stat-row" id="dns-stats"></div>
+    <p class="info" id="dns-info"></p>
+    <table class="dom">
+      <thead><tr><th style="width:44px">#</th><th>Domain</th><th style="width:110px;text-align:right">Lookups</th><th class="hide-sm" style="width:30%"></th></tr></thead>
+      <tbody id="dns-body"></tbody>
+    </table>
+  </section>
+
+  <section id="tab-devices" class="hidden">
     <div class="toolbar">
       <input type="search" id="filter" placeholder="Filter by name, IP, MAC, vendor…">
       <label class="chk"><input type="checkbox" id="show-offline" checked> Show offline</label>
@@ -441,9 +580,10 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ipNum = ip => (ip || "0.0.0.0").split(".").reduce((a, o) => a * 256 + (+o), 0);
-let state = { status: {}, devices: [], now: Date.now() / 1000, ips: [], events: [], sort: "ip", dir: 1, tab: "devices",
+let state = { status: {}, devices: [], now: Date.now() / 1000, ips: [], events: [], sort: "ip", dir: 1, tab: "home",
+              tl: null, tlAt: 0, tlHours: 24, tlShowAll: false,
               checks: [], internet: null, settings: null, detail: null, detailDays: 1, editingCheck: null };
-const TABS = ["devices", "ips", "svc", "res", "events", "set"];
+const TABS = ["home", "devices", "ips", "svc", "res", "dns", "events", "set"];
 const CHANNELS = [["none", "Off"], ["phone", "Phone"], ["email", "Email"], ["both", "Phone + email"]];
 
 function dur(s) {
@@ -467,6 +607,8 @@ async function refresh() {
     const [st, dv, ips] = await Promise.all([api("/api/status"), api("/api/devices"), api("/api/ips")]);
     state.status = st; state.devices = dv.devices; state.now = dv.now; state.ips = ips.ips;
     if (state.tab === "events") state.events = (await api("/api/events?limit=300")).events;
+    if (state.tab === "home") await loadHome();
+    if (state.tab === "dns" && !state.dns) loadDomains();
     if (state.tab === "res" && st.router && st.router.enabled) state.res = (await api("/api/reservations")).reservations;
     if (state.tab === "svc") {
       const [ck, net] = await Promise.all([api("/api/checks"), api("/api/internet")]);
@@ -493,6 +635,8 @@ function render() {
   showErr([st.last_error && "Last scan failed: " + st.last_error,
            rt.enabled && rt.error && "Router sync failed: " + rt.error].filter(Boolean).join(" · "));
   document.querySelectorAll(".rt").forEach(e => e.style.display = rt.enabled && rt.dhcp_first ? "" : "none");
+  if (state.tab === "home") renderHome();
+  if (state.tab === "dns") renderDomainDevices();
   if (state.tab === "devices") renderDevices();
   if (state.tab === "ips") renderIps();
   if (state.tab === "events") renderEvents();
@@ -500,6 +644,7 @@ function render() {
   if (state.tab === "svc") renderServices();
   if (state.tab === "set") renderSettings();
   $("#nav-res").style.display = rt.enabled ? "" : "none";
+  $("#nav-dns").style.display = (st.pihole || {}).enabled ? "" : "none";
   renderHeaderExtras();
 }
 
@@ -575,15 +720,16 @@ function renderIps() {
     ? `Router DHCP pool: ${rt.dhcp_first} – ${rt.dhcp_last} · ${rt.reservations} reservation(s) · ` +
       `${state.ips.filter(i => i.status === "free" && i.in_pool === false).length} free address(es) outside the pool`
     : "";
-  $("#ip-grid").innerHTML = state.ips.map(i => {
-    let tip;
-    if (i.status === "free") tip = `${i.ip} — available` + (i.in_pool === false ? " (outside DHCP pool: safe for a static IP)" : i.in_pool ? " (in DHCP pool)" : "");
-    else if (i.status === "reserved") tip = `${i.ip} — reserved on router for ${i.name || i.mac} (not seen on network)`;
-    else tip = `${i.ip} — ${i.name || "Unknown"}${i.mac ? ` (${i.mac})` : ""}${i.status === "offline" ? ", last seen " + ts(i.last_seen) : ""}${i.reserved ? " · reserved" : ""}`;
-    const cls = [i.status, i.status === "free" && i.in_pool === false ? "static-ok" : ""].join(" ");
-    return `<div class="cell ${cls}" title="${esc(tip)}">.${i.ip.split(".").pop()}</div>`;
-  }).join("");
+  $("#ip-grid").innerHTML = state.ips.map(i =>
+    `<div class="cell ${ipCls(i)}" title="${esc(ipTip(i))}">.${i.ip.split(".").pop()}</div>`).join("");
 }
+
+function ipTip(i) {
+  if (i.status === "free") return `${i.ip} — available` + (i.in_pool === false ? " (outside DHCP pool: safe for a static IP)" : i.in_pool ? " (in DHCP pool)" : "");
+  if (i.status === "reserved") return `${i.ip} — reserved on router for ${i.name || i.mac} (not seen on network)`;
+  return `${i.ip} — ${i.name || "Unknown"}${i.mac ? ` (${i.mac})` : ""}${i.status === "offline" ? ", last seen " + ts(i.last_seen) : ""}${i.reserved ? " · reserved" : ""}`;
+}
+const ipCls = i => [i.status, i.status === "free" && i.in_pool === false ? "static-ok" : ""].join(" ");
 
 function renderEvents() {
   const byMac = Object.fromEntries(state.devices.map(d => [d.mac, d]));
@@ -599,7 +745,9 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
   state.tab = b.dataset.tab;
   TABS.forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== state.tab));
+  document.body.classList.toggle("on-home", state.tab === "home");
   if (state.tab === "set") state.settings = null;
+  if (state.tab === "dns") { state.dns = null; renderDomains(); }
   refresh();
 });
 document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
@@ -1051,6 +1199,284 @@ $("#ip-grid").addEventListener("click", e => { const c = e.target.closest(".cell
 $("#s-tls").addEventListener("click", e => {
   const t = e.target.closest("[title]"); if (t && t.title && matchMedia("(hover: none)").matches) toast(t.title);
 });
+
+// ---------- Overview (Control Room + timeline) ----------
+const TL_RANGES = [[6, "6h"], [24, "24h"], [168, "7d"]];
+const fmtN = n => n >= 10000 ? Math.round(n / 1000) + "k" : n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n);
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+async function loadHome(force) {
+  const now = Date.now() / 1000;
+  const needTl = force || !state.tl || state.tl.hours !== state.tlHours || now - state.tlAt > 60;
+  const [ck, ev, tl] = await Promise.all([api("/api/checks"), api("/api/events?limit=150"),
+                                          needTl ? api(`/api/timeline?hours=${state.tlHours}`) : null]);
+  state.checks = ck.checks; state.events = ev.events;
+  if (tl) { state.tl = tl; state.tlAt = now; }
+}
+
+function renderHome() { renderStrip(); renderAttention(); renderTimeline(); renderMiniIps(); renderMiniChecks(); renderFeed(); }
+
+function renderStrip() {
+  const st = state.status, net = st.internet || {};
+  const tile = (label, value, sub, cls = "") =>
+    `<div class="tile ${cls}"><div class="t-l">${label}</div><div class="t-v">${value}</div><div class="t-s">${sub}</div></div>`;
+  const free = state.ips.filter(i => i.status === "free").length, reserved = state.ips.filter(i => i.reserved).length;
+  const checks = state.checks.filter(c => c.enabled), down = checks.filter(c => c.state === "down").length;
+  const dnsDevs = state.devices.filter(d => d.dns), chatty = dnsDevs.filter(d => d.dns.chatty).length;
+  const q24 = dnsDevs.reduce((a, d) => a + (d.dns.queries_24h || 0), 0);
+  $("#ov-strip").innerHTML = [
+    !net.enabled ? tile("Internet", "–", "Not monitored", "muted")
+      : net.state === "down" ? tile("Internet", "Down", "for " + dur(st.now - net.outage_since), "bad")
+      : tile("Internet", net.state === "up" ? "Up" : "…", net.uptime_7d != null ? `${net.uptime_7d}% over 7 days` : "Checking…", "good"),
+    tile("Devices", `${st.online ?? "–"}<small> / ${st.known ?? "–"}</small>`,
+         st.unacknowledged ? `${st.unacknowledged} new to review` : "online / known", st.unacknowledged ? "warn" : ""),
+    checks.length ? tile("Services", down ? `${down} down` : "All up", plural(checks.length, "check"), down ? "bad" : "good")
+                  : tile("Services", "–", "No checks yet", "muted"),
+    tile("Free addresses", free, `of ${state.ips.length}${reserved ? ` · ${reserved} reserved` : ""}`),
+    st.pihole && st.pihole.enabled
+      ? tile("DNS queries", fmtN(q24), chatty ? `${plural(chatty, "chatty device")}` : "last 24 hours", chatty ? "warn" : "")
+      : tile("DNS", "–", "Pi-hole not connected", "muted"),
+  ].join("");
+}
+
+function renderAttention() {
+  const st = state.status, net = st.internet || {}, now = state.now, items = [];
+  const item = (tag, cls, title, detail, actions = "") => items.push(
+    `<li><span class="pill ${cls}">${tag}</span><div class="a-body"><b>${esc(title)}</b><div class="sub">${esc(detail)}</div></div><div class="a-act">${actions}</div></li>`);
+  if (net.enabled && net.state === "down")
+    item("DOWN", "bad", "Internet", `No connection for ${dur(st.now - net.outage_since)}. Device alerts are held until it's back.`);
+  for (const c of state.checks.filter(c => c.enabled && c.state === "down"))
+    item("DOWN", "bad", c.name, [`${c.kind} ${c.target || ""}`, c.since && `down ${dur(st.now - c.since)}`, c.last_error].filter(Boolean).join(" · "),
+         `<button data-run="${c.id}">Check now</button>`);
+  for (const d of state.devices.filter(d => d.critical && !d.online))
+    item("OFFLINE", "bad", devName(d), `${d.ip || ""} · critical device, last seen ${dur(now - d.last_seen)} ago`, `<button data-open="${d.mac}">Details</button>`);
+  for (const d of state.devices.filter(d => d.dns && d.dns.chatty))
+    item("CHATTY", "warn", devName(d), `${fmtN(d.dns.queries_1h)} DNS lookups in the last hour (usually about ${fmtN(d.dns.baseline_per_hour || 0)})`,
+         `<button data-domains="${d.mac}">Top domains</button>`);
+  const fresh = state.devices.filter(d => !d.acknowledged).sort((a, b) => b.first_seen - a.first_seen);
+  for (const d of fresh.slice(0, 5))
+    item("NEW", "info", devName(d), `${d.ip || "no IP"} · ${d.vendor || "unknown maker"} · first seen ${dur(now - d.first_seen)} ago`,
+         `<button data-ack="${d.mac}">Known</button><button data-open="${d.mac}">Details</button>`);
+  if (fresh.length > 5) items.push(`<li><span class="sub">…and ${fresh.length - 5} more new devices</span><div class="a-act"><button data-review>Review all</button></div></li>`);
+  $("#ov-attn").innerHTML = items.join("") || `<li><span class="all-quiet">✓</span><span>Nothing needs attention right now.</span></li>`;
+}
+
+function tlTicks(tl) {
+  const out = [], d = new Date(tl.since * 1000), days = tl.hours > 24, stepH = tl.hours === 6 ? 1 : 4;
+  if (days) d.setHours(24, 0, 0, 0);
+  else { d.setMinutes(60, 0, 0); while (d.getHours() % stepH) d.setHours(d.getHours() + 1); }
+  while (d.getTime() / 1000 < tl.until) {
+    out.push({ t: d.getTime() / 1000, label: days ? d.toLocaleDateString([], { weekday: "short", day: "numeric" })
+                                                  : d.toLocaleTimeString([], { hour: "numeric" }) });
+    days ? d.setDate(d.getDate() + 1) : d.setHours(d.getHours() + stepH);
+  }
+  return out;
+}
+
+function renderTimeline() {
+  $("#tl-range").innerHTML = TL_RANGES.map(([h, l]) =>
+    `<button data-h="${h}" class="${h === state.tlHours ? "on" : ""}" aria-pressed="${h === state.tlHours}">${l}</button>`).join("");
+  const tl = state.tl, box = $("#tl");
+  if (!tl || tl.hours !== state.tlHours) { box.innerHTML = `<p class="sub">Loading…</p>`; return; }
+  const span = tl.until - tl.since;
+  const L = t => ((t - tl.since) / span * 100).toFixed(3) + "%", W = (a, b) => ((b - a) / span * 100).toFixed(3) + "%";
+  const when = t => new Date(t * 1000).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  const tip = ([a, b], what) => `${what}: ${when(a)} – ${b >= tl.until - 1 ? "now" : when(b)} (${dur(b - a)})`;
+  const ticks = tlTicks(tl), grid = ticks.map(k => `<i class="g" style="left:${L(k.t)}"></i>`).join("");
+  const row = (label, track, cls = "", x = "", attrs = "", tag = "div") =>
+    `<${tag} class="tl-row" ${attrs}><span class="tl-lbl">${label}</span><span class="tl-track ${cls}" style="display:block">${grid}${track}</span><span class="tl-x">${x}</span></${tag}>`;
+
+  // tag filter options
+  const sel = $("#tl-tag"), keep = sel.value, tags = [...new Set(tl.devices.flatMap(d => d.tags))].sort();
+  sel.innerHTML = `<option value="">All devices</option><option value="!critical">Critical only</option>` +
+    tags.map(t => `<option value="${esc(t)}">#${esc(t)}</option>`).join("");
+  sel.value = [...sel.options].some(o => o.value === keep) ? keep : "";
+
+  let h = `<div class="tl-row" aria-hidden="true"><span></span><span class="tl-axis" style="display:block">${
+    ticks.map(k => `<span style="left:${L(k.t)}">${esc(k.label)}</span>`).join("")}</span><span></span></div>`;
+  if (tl.internet) {
+    h += `<div class="tl-sec">Internet</div>` + row("Internet connection",
+      tl.internet.map(o => `<b class="down" style="left:${L(o.span[0])};width:${W(...o.span)}" title="${esc(tip(o.span, o.cause === "router" ? "Router unreachable" : "Internet down"))}"></b>`).join(""),
+      "ok", tl.internet.length ? `${tl.internet.length}↓` : "", `title="${tl.internet.length ? plural(tl.internet.length, "outage") : "No outages"} in this range"`);
+  }
+  if (tl.services.length) {
+    h += `<div class="tl-sec">Services</div>` + tl.services.map(s => row(
+      `${esc(s.name)} <span class="mono">${esc(s.kind)}</span>`,
+      s.down.map(sp => `<b class="down" style="left:${L(sp[0])};width:${W(...sp)}" title="${esc(tip(sp, "Failing"))}"></b>`).join(""),
+      s.checked ? "ok" : "nodata", s.down.length ? `${s.down.length}↓` : "", s.checked ? "" : `title="No results in this range"`)).join("");
+  }
+  const tag = sel.value, onlyDrops = $("#tl-drops").checked;
+  let devs = tl.devices.filter(d => (!tag || (tag === "!critical" ? d.critical : d.tags.includes(tag))) && (!onlyDrops || d.drops));
+  const total = devs.length, limit = state.tlShowAll ? Infinity : 25;
+  h += `<div class="tl-sec">Devices · ${total}${tl.devices_truncated ? "+" : ""}</div>`;
+  h += devs.slice(0, limit).map(d => row(
+    `${esc(d.name)} <span class="mono">${esc(d.ip ? "." + d.ip.split(".").pop() : "")}</span>${d.critical ? '<span class="chip crit">critical</span>' : ""}${d.new ? '<span class="chip new">new</span>' : ""}`,
+    d.segments.map(sp => `<b class="on" style="left:${L(sp[0])};width:${W(...sp)}" title="${esc(tip(sp, "Online"))}"></b>`).join(""),
+    "", d.drops ? `${d.drops}↓` : "",
+    `data-open="${d.mac}" title="${esc(`${d.name}${d.ip ? " · " + d.ip : ""}${d.availability != null ? ` · online ${d.availability}% of this range` : ""}${d.drops ? ` · ${plural(d.drops, "drop-off")}` : ""}`)}"`, "button")).join("")
+    || `<p class="sub">No devices match.</p>`;
+  if (total > limit) h += `<p><button data-tlmore>Show all ${total} devices</button></p>`;
+  if (tl.dns) {
+    const max = Math.max(1, ...tl.dns.hourly), med = [...tl.dns.hourly].sort((a, b) => a - b)[tl.dns.hourly.length >> 1];
+    h += `<div class="tl-sec">DNS lookups per hour</div><div class="tl-row"><span class="tl-lbl mono">peak ${fmtN(max)}/h</span><span class="tl-dns">${
+      tl.dns.hourly.map((v, i) => `<i class="${v > 3 * Math.max(med, 1) ? "hi" : ""}" style="height:${(v / max * 100).toFixed(1)}%" title="${fmtN(v)} lookups, ${tl.dns.hourly.length - i} h ago"></i>`).join("")
+    }</span><span></span></div>`;
+  } else if ((state.status.pihole || {}).enabled && tl.hours > 24) {
+    h += `<p class="note">DNS volume is shown for the 6h and 24h ranges (Pi-hole keeps 24 hours of per-client history).</p>`;
+  }
+  box.innerHTML = h;
+}
+
+function renderMiniIps() {
+  const ips = state.ips, used = ips.filter(i => i.status !== "free").length;
+  $("#ov-ips-sub").textContent = ips.length ? `${state.status.subnet || ""} · ${used} in use, ${ips.length - used} free` : "";
+  $("#ov-ips").innerHTML = ips.map(i => `<i class="mc ${ipCls(i)}" title="${esc(ipTip(i))}"></i>`).join("");
+}
+
+function renderMiniChecks() {
+  const checks = state.checks.filter(c => c.enabled);
+  $("#ov-svc").innerHTML = checks.length ? `<table class="mini"><tbody>${checks.map(c => `<tr>
+      <td><span class="dot ${c.state === "up" ? "on" : c.state === "down" ? "off" : ""}"></span></td>
+      <td><b>${esc(c.name)}</b><div class="sub mono">${esc(c.kind)} ${esc(c.target || "")}</div></td>
+      <td class="mono">${c.uptime_24h != null ? c.uptime_24h + "%" : "–"}<div class="sub">24h</div></td>
+      <td class="mono hide-sm">${c.avg_latency_ms != null ? c.avg_latency_ms + " ms" : "–"}</td>
+      <td class="hide-sm"><div class="spark">${(c.recent || []).map(ok => `<i class="${ok ? "" : "f"}"></i>`).join("")}</div></td>
+    </tr>`).join("")}</tbody></table>`
+    : `<p class="sub">No service checks yet. Add one to watch a web page, port or ping target.</p>`;
+}
+
+function blipIds(events) {          // offline + back online within 5 minutes
+  const hide = new Set(), asc = [...events].sort((a, b) => a.ts - b.ts);
+  asc.forEach((e, i) => {
+    if (e.kind !== "offline") return;
+    const back = asc.slice(i + 1).find(x => x.mac === e.mac && (x.kind === "online" || x.kind === "offline"));
+    if (back && back.kind === "online" && back.ts - e.ts < 300) { hide.add(e); hide.add(back); }
+  });
+  return hide;
+}
+
+function feedTime(t) {
+  const d = new Date(t * 1000), time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? time : d.toLocaleDateString([], { weekday: "short" }) + " " + time;
+}
+
+function renderFeed() {
+  const byMac = Object.fromEntries(state.devices.map(d => [d.mac, d]));
+  const hide = $("#ov-blips").checked ? blipIds(state.events) : new Set();
+  const list = state.events.filter(e => !hide.has(e)).slice(0, 60);
+  $("#ov-feed").innerHTML = list.map(e => `<li>
+      <span class="f-t" title="${esc(ts(e.ts))}">${esc(feedTime(e.ts))}</span>
+      <span><span class="k-${esc(e.kind)}">${esc(EVENT_NAMES[e.kind] || e.kind)}</span> · ${esc(byMac[e.mac] ? devName(byMac[e.mac]) : (e.mac || e.ip || ""))}</span>
+      ${e.detail ? `<span class="f-d">${esc(e.detail)}</span>` : ""}</li>`).join("")
+    || `<li><span></span><span class="sub">No activity yet.</span></li>`;
+}
+
+$("#ov-blips").addEventListener("change", renderFeed);
+$("#tl-tag").addEventListener("change", () => { state.tlShowAll = false; renderTimeline(); });
+$("#tl-drops").addEventListener("change", renderTimeline);
+$("#tl-range").addEventListener("click", e => {
+  const b = e.target.closest("[data-h]"); if (!b) return;
+  state.tlHours = +b.dataset.h; state.tlShowAll = false; renderTimeline(); refresh();
+});
+const gotoTab = t => document.querySelector(`nav button[data-tab="${t}"]`).click();
+$("#tab-home").addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return;
+  try {
+    if (t.dataset.open) return openDetail(t.dataset.open);
+    if (t.dataset.goto) return gotoTab(t.dataset.goto);
+    if (t.dataset.domains) { state.domMac = t.dataset.domains; return gotoTab("dns"); }
+    if ("tlmore" in t.dataset) { state.tlShowAll = true; return renderTimeline(); }
+    if ("review" in t.dataset) { $("#only-new").checked = true; $("#show-offline").checked = true; return gotoTab("devices"); }
+    if (t.dataset.ack) { await api("/api/devices/acknowledge", { method: "POST", body: JSON.stringify({ macs: [t.dataset.ack] }) }); toast("Marked as known"); return refresh(); }
+    if (t.dataset.run) {
+      t.disabled = true; const r = await api(`/api/checks/${t.dataset.run}/run`, { method: "POST" });
+      toast(r.result && r.result.ok ? "It's answering again" : "Still failing"); return refresh();
+    }
+  } catch (err) { toast(errText(err)); t.disabled = false; }
+});
+$("#ov-ips").addEventListener("click", e => { const c = e.target.closest(".mc"); if (c) toast(c.title); });
+document.body.classList.add("on-home");
+
+// ---------- Top domains ----------
+state.dnsKind = "allowed"; state.dns = null; state.domMac = null; state.dnsOpen = null;
+async function loadDomains() {
+  const mac = state.domMac;
+  state.dns = { loading: true, mac };
+  renderDomains();
+  try {
+    const r = mac ? await api(`/api/devices/${mac}/dns?hours=24`) : await api("/api/dns/top?count=100");
+    if (state.domMac === mac) { state.dns = { ...r, mac }; renderDomains(); }
+  } catch (e) { state.dns = { error: errText(e), mac }; renderDomains(); }
+}
+function renderDomainDevices() {
+  const sel = $("#dns-dev"), devs = state.devices.filter(d => d.ip).sort((a, b) => devName(a).localeCompare(devName(b)));
+  const want = state.domMac || "";
+  if (sel.dataset.n !== String(devs.length) || sel.value !== want) {
+    sel.innerHTML = `<option value="">Whole network</option>` +
+      devs.map(d => `<option value="${d.mac}">${esc(devName(d))} · ${esc(d.ip)}${d.dns && d.dns.chatty ? " (chatty)" : ""}</option>`).join("");
+    sel.dataset.n = devs.length; sel.value = want;
+  }
+}
+function renderDomains() {
+  renderDomainDevices();
+  const r = state.dns, body = $("#dns-body"), kindSeg = $("#dns-kind");
+  const perDevice = !!state.domMac;
+  kindSeg.style.display = perDevice ? "none" : "";
+  kindSeg.querySelectorAll("button").forEach(b => { const on = b.dataset.k === state.dnsKind; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  $("#dns-stats").innerHTML = ""; $("#dns-info").textContent = "";
+  if (!r || r.loading) { body.innerHTML = `<tr class="empty"><td colspan="4" class="sub">Asking Pi-hole…</td></tr>`; return; }
+  if (r.error) { body.innerHTML = `<tr class="empty"><td colspan="4" class="sub">${esc(r.error)}</td></tr>`; return; }
+  let rows, total;
+  if (perDevice) {
+    const d = state.devices.find(x => x.mac === state.domMac), st = r.stats || {};
+    rows = r.domains || [];
+    $("#dns-stats").innerHTML = `<div>Lookups, 24h<b>${fmtN(st.queries_24h || 0)}</b></div><div>Last hour<b>${fmtN(st.queries_1h || 0)}</b></div>` +
+      `<div>Usual per hour<b>${st.baseline_per_hour != null ? fmtN(st.baseline_per_hour) : "–"}</b></div>` +
+      (st.chatty ? `<div>Status<b style="color:var(--amber)">Chatty</b></div>` : "");
+    $("#dns-info").textContent = `Top domains for ${d ? devName(d) : state.domMac} over the last 24 hours, counted from ${fmtN(r.sampled || 0)} recent lookups.` +
+      (r.errors && r.errors.length ? ` Some Pi-holes didn't answer: ${r.errors.join("; ")}` : "");
+  } else {
+    rows = r[state.dnsKind] || [];
+    const pct = r.total_queries ? (100 * r.blocked_queries / r.total_queries).toFixed(1) : "0";
+    $("#dns-stats").innerHTML = `<div>Lookups, 24h<b>${fmtN(r.total_queries)}</b></div><div>Blocked<b>${fmtN(r.blocked_queries)}</b></div>` +
+      `<div>Blocked share<b>${pct}%</b></div><div>Pi-holes<b>${r.servers.length}</b></div>`;
+    $("#dns-info").textContent = `Busiest ${state.dnsKind} domains across the network (Pi-hole's last 24 hours, all Pi-holes added together). Select a domain to see which devices looked it up.` +
+      (r.errors && r.errors.length ? ` Some Pi-holes didn't answer: ${r.errors.join("; ")}` : "");
+  }
+  $("table.dom").classList.toggle("blocked", !perDevice && state.dnsKind === "blocked");
+  const q = $("#dns-q").value.trim().toLowerCase();
+  const max = Math.max(1, ...rows.map(x => x.count));
+  const shown = rows.map((x, i) => ({ ...x, rank: i + 1 })).filter(x => !q || x.domain.toLowerCase().includes(q));
+  body.innerHTML = shown.map(x => `
+    <tr class="drow" tabindex="0" data-dom="${esc(x.domain)}" aria-expanded="${state.dnsOpen === x.domain}">
+      <td class="sub mono">${x.rank}</td><td class="mono domain">${esc(x.domain)}</td>
+      <td class="mono" style="text-align:right">${x.count.toLocaleString()}</td>
+      <td class="hide-sm"><div class="dbar"><i style="width:${(x.count / max * 100).toFixed(1)}%"></i></div></td></tr>
+    ${state.dnsOpen === x.domain ? `<tr class="dsub"><td></td><td colspan="3" id="dns-who">Looking up devices…</td></tr>` : ""}`).join("")
+    || `<tr class="empty"><td colspan="4" class="sub">${rows.length ? "No domains match the filter." : "No lookups recorded yet."}</td></tr>`;
+  if (state.dnsOpen && shown.some(x => x.domain === state.dnsOpen)) loadDomainClients(state.dnsOpen);
+}
+async function loadDomainClients(domain) {
+  try {
+    const r = await api(`/api/dns/domain?name=${encodeURIComponent(domain)}`);
+    const cell = $("#dns-who"); if (!cell || state.dnsOpen !== domain) return;
+    cell.innerHTML = r.clients.length ? `<ul class="plain">${r.clients.map(c => `<li><span>${c.mac
+        ? `<a href="#" data-open="${c.mac}" style="color:var(--accent)">${esc(c.name)}</a>` : `<span class="sub">Not a known device</span>`}
+        <span class="mono sub">${esc(c.ip)}</span></span><span class="mono">${c.count.toLocaleString()}</span></li>`).join("")}</ul>
+        <div class="note">From the last ${fmtN(r.sampled)} lookups of this domain in 24 hours.</div>`
+      : `<span class="sub">No recent lookups found in Pi-hole's query log.</span>`;
+  } catch (e) { const cell = $("#dns-who"); if (cell) cell.textContent = errText(e); }
+}
+$("#dns-kind").addEventListener("click", e => { const b = e.target.closest("[data-k]"); if (!b) return; state.dnsKind = b.dataset.k; state.dnsOpen = null; renderDomains(); });
+$("#dns-dev").addEventListener("change", e => { state.domMac = e.target.value || null; state.dnsOpen = null; loadDomains(); });
+$("#dns-q").addEventListener("input", renderDomains);
+$("#dns-reload").onclick = () => loadDomains();
+$("#dns-body").addEventListener("click", e => {
+  const a = e.target.closest("[data-open]"); if (a) { e.preventDefault(); return openDetail(a.dataset.open); }
+  const r = e.target.closest("tr.drow"); if (!r || state.domMac) return;
+  state.dnsOpen = state.dnsOpen === r.dataset.dom ? null : r.dataset.dom; renderDomains();
+});
+$("#dns-body").addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches("tr.drow")) { e.preventDefault(); e.target.click(); } });
 
 refresh();
 setInterval(refresh, 10000);
