@@ -4,6 +4,13 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.7.1 (2026-11-18): Security and layout hardening
+- **DNS details now require a dashboard login.** Top domains, per-device domains and "which devices looked up this domain" are only available when `WEB_PASSWORD` is set, since they show what everyone on the network browses. Query counts and chatty-device alerts still work without a password.
+- The cache of Pi-hole lookups is now capped, so repeated domain lookups can't grow NetWatch's memory use.
+- Device MAC addresses are now escaped everywhere they appear in the new Overview and Top domains pages (defence in depth; MACs come from the network scan).
+- Very long device, service or domain names no longer stretch the page on phones. Before, a long name could push the device details window's close button off the screen.
+- No database changes; rolling back to v1.7.0 or v1.6.0 is safe.
+
 ## v1.7.0 (2026-11-18): New Overview dashboard with a timeline, and a Top domains tab
 - **New Overview tab** (now the home screen), in a darker "control room" look used across the whole dashboard:
   - A status strip: internet, devices online, services, free addresses and DNS queries.

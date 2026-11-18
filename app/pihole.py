@@ -255,10 +255,14 @@ class PiholeIntegration:
                   "blocked": [{"domain": d, "count": n} for d, n in blocked.most_common(count)],
                   "total_queries": total, "blocked_queries": blocked_total,
                   "servers": [c.host for c in self.clients], "errors": errors, "fetched": time.time()}
-        self._domain_cache[key] = (time.time(), result)
+        self._remember(key, result)
         return result
 
     def domain_clients(self, domain, hours=24):
+        key = ("domain", domain, hours)
+        cached = self._domain_cache.get(key)
+        if cached and time.time() - cached[0] < 60:
+            return cached[1]
         counts, errors = Counter(), []
         since = time.time() - hours * 3600
         for c in self.clients:
@@ -266,8 +270,20 @@ class PiholeIntegration:
                 counts.update(c.domain_clients(domain, since))
             except PiholeError as e:
                 errors.append(str(e))
-        return {"clients": [{"ip": ip, "count": n} for ip, n in counts.most_common(25)],
-                "sampled": sum(counts.values()), "errors": errors}
+        result = {"clients": [{"ip": ip, "count": n} for ip, n in counts.most_common(25)],
+                  "sampled": sum(counts.values()), "errors": errors}
+        self._remember(key, result)
+        return result
+
+    def _remember(self, key, result, limit=300):
+        """Cache a Pi-hole answer briefly; keep the cache small whatever is asked for."""
+        now = time.time()
+        if len(self._domain_cache) >= limit:
+            for k in [k for k, (t, _) in self._domain_cache.items() if now - t >= 120]:
+                del self._domain_cache[k]
+            while len(self._domain_cache) >= limit:
+                del self._domain_cache[next(iter(self._domain_cache))]
+        self._domain_cache[key] = (now, result)
 
     def total_hourly(self):
         """DNS queries per hour across every client for the last 24h, oldest first."""
@@ -291,7 +307,7 @@ class PiholeIntegration:
                 errors.append(str(e))
         result = {"domains": [{"domain": d, "count": n} for d, n in counts.most_common(limit)],
                   "sampled": sum(counts.values()), "errors": errors}
-        self._domain_cache[key] = (time.time(), result)
+        self._remember(key, result)
         return result
 
     def status(self):

@@ -140,6 +140,10 @@
   .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13px; }
   .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
   .dt-head { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
+  .dt-head > :first-child { min-width: 0; } .dt-head > button { flex: none; }
+  .sheet { min-width: 0; overflow-wrap: anywhere; }
+  .sheet ul.plain li > span:first-child { min-width: 0; }
+  ul.attn b, .tl-lbl { overflow-wrap: anywhere; }
   .dt-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
   .seg button { border: none; border-radius: 0; padding: 3px 10px; }
@@ -309,6 +313,8 @@
   .mc.reserved { background: #a371f7; opacity: .7; } .mc.static-ok { box-shadow: inset 0 0 0 1px rgba(63,185,80,.6); }
   table.mini { border: none; background: none; }
   table.mini td { padding: 7px 8px; }
+  table.mini td, table.dom td { overflow-wrap: anywhere; }
+  #dns-dev, #tl-tag { max-width: 100%; min-width: 0; }
   table.mini td:first-child { padding-left: 0; } table.mini td:last-child { padding-right: 0; }
   .ov-feed { position: sticky; top: 12px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
   ul.feed { list-style: none; margin: 8px 0 0; padding: 0; overflow-y: auto; font-size: 13px; }
@@ -1247,16 +1253,16 @@ function renderAttention() {
     item("DOWN", "bad", "Internet", `No connection for ${dur(st.now - net.outage_since)}. Device alerts are held until it's back.`);
   for (const c of state.checks.filter(c => c.enabled && c.state === "down"))
     item("DOWN", "bad", c.name, [`${c.kind} ${c.target || ""}`, c.since && `down ${dur(st.now - c.since)}`, c.last_error].filter(Boolean).join(" · "),
-         `<button data-run="${c.id}">Check now</button>`);
+         `<button data-run="${+c.id}">Check now</button>`);
   for (const d of state.devices.filter(d => d.critical && !d.online))
-    item("OFFLINE", "bad", devName(d), `${d.ip || ""} · critical device, last seen ${dur(now - d.last_seen)} ago`, `<button data-open="${d.mac}">Details</button>`);
+    item("OFFLINE", "bad", devName(d), `${d.ip || ""} · critical device, last seen ${dur(now - d.last_seen)} ago`, `<button data-open="${esc(d.mac)}">Details</button>`);
   for (const d of state.devices.filter(d => d.dns && d.dns.chatty))
     item("CHATTY", "warn", devName(d), `${fmtN(d.dns.queries_1h)} DNS lookups in the last hour (usually about ${fmtN(d.dns.baseline_per_hour || 0)})`,
-         `<button data-domains="${d.mac}">Top domains</button>`);
+         `<button data-domains="${esc(d.mac)}">Top domains</button>`);
   const fresh = state.devices.filter(d => !d.acknowledged).sort((a, b) => b.first_seen - a.first_seen);
   for (const d of fresh.slice(0, 5))
     item("NEW", "info", devName(d), `${d.ip || "no IP"} · ${d.vendor || "unknown maker"} · first seen ${dur(now - d.first_seen)} ago`,
-         `<button data-ack="${d.mac}">Known</button><button data-open="${d.mac}">Details</button>`);
+         `<button data-ack="${esc(d.mac)}">Known</button><button data-open="${esc(d.mac)}">Details</button>`);
   if (fresh.length > 5) items.push(`<li><span class="sub">…and ${fresh.length - 5} more new devices</span><div class="a-act"><button data-review>Review all</button></div></li>`);
   $("#ov-attn").innerHTML = items.join("") || `<li><span class="all-quiet">✓</span><span>Nothing needs attention right now.</span></li>`;
 }
@@ -1289,7 +1295,7 @@ function renderTimeline() {
   // tag filter options
   const sel = $("#tl-tag"), keep = sel.value, tags = [...new Set(tl.devices.flatMap(d => d.tags))].sort();
   sel.innerHTML = `<option value="">All devices</option><option value="!critical">Critical only</option>` +
-    tags.map(t => `<option value="${esc(t)}">#${esc(t)}</option>`).join("");
+    tags.map(t => `<option value="${esc(t)}">#${esc(clip(t, 30))}</option>`).join("");
   sel.value = [...sel.options].some(o => o.value === keep) ? keep : "";
 
   let h = `<div class="tl-row" aria-hidden="true"><span></span><span class="tl-axis" style="display:block">${
@@ -1313,7 +1319,7 @@ function renderTimeline() {
     `${esc(d.name)} <span class="mono">${esc(d.ip ? "." + d.ip.split(".").pop() : "")}</span>${d.critical ? '<span class="chip crit">critical</span>' : ""}${d.new ? '<span class="chip new">new</span>' : ""}`,
     d.segments.map(sp => `<b class="on" style="left:${L(sp[0])};width:${W(...sp)}" title="${esc(tip(sp, "Online"))}"></b>`).join(""),
     "", d.drops ? `${d.drops}↓` : "",
-    `data-open="${d.mac}" title="${esc(`${d.name}${d.ip ? " · " + d.ip : ""}${d.availability != null ? ` · online ${d.availability}% of this range` : ""}${d.drops ? ` · ${plural(d.drops, "drop-off")}` : ""}`)}"`, "button")).join("")
+    `data-open="${esc(d.mac)}" title="${esc(`${d.name}${d.ip ? " · " + d.ip : ""}${d.availability != null ? ` · online ${d.availability}% of this range` : ""}${d.drops ? ` · ${plural(d.drops, "drop-off")}` : ""}`)}"`, "button")).join("")
     || `<p class="sub">No devices match.</p>`;
   if (total > limit) h += `<p><button data-tlmore>Show all ${total} devices</button></p>`;
   if (tl.dns) {
@@ -1408,12 +1414,13 @@ async function loadDomains() {
     if (state.domMac === mac) { state.dns = { ...r, mac }; renderDomains(); }
   } catch (e) { state.dns = { error: errText(e), mac }; renderDomains(); }
 }
+const clip = (t, n) => (t = String(t ?? "")).length > n ? t.slice(0, n - 1) + "…" : t;
 function renderDomainDevices() {
   const sel = $("#dns-dev"), devs = state.devices.filter(d => d.ip).sort((a, b) => devName(a).localeCompare(devName(b)));
   const want = state.domMac || "";
   if (sel.dataset.n !== String(devs.length) || sel.value !== want) {
     sel.innerHTML = `<option value="">Whole network</option>` +
-      devs.map(d => `<option value="${d.mac}">${esc(devName(d))} · ${esc(d.ip)}${d.dns && d.dns.chatty ? " (chatty)" : ""}</option>`).join("");
+      devs.map(d => `<option value="${esc(d.mac)}">${esc(clip(devName(d), 40))} · ${esc(d.ip)}${d.dns && d.dns.chatty ? " (chatty)" : ""}</option>`).join("");
     sel.dataset.n = devs.length; sel.value = want;
   }
 }
@@ -1461,7 +1468,7 @@ async function loadDomainClients(domain) {
     const r = await api(`/api/dns/domain?name=${encodeURIComponent(domain)}`);
     const cell = $("#dns-who"); if (!cell || state.dnsOpen !== domain) return;
     cell.innerHTML = r.clients.length ? `<ul class="plain">${r.clients.map(c => `<li><span>${c.mac
-        ? `<a href="#" data-open="${c.mac}" style="color:var(--accent)">${esc(c.name)}</a>` : `<span class="sub">Not a known device</span>`}
+        ? `<a href="#" data-open="${esc(c.mac)}" style="color:var(--accent)">${esc(c.name)}</a>` : `<span class="sub">Not a known device</span>`}
         <span class="mono sub">${esc(c.ip)}</span></span><span class="mono">${c.count.toLocaleString()}</span></li>`).join("")}</ul>
         <div class="note">From the last ${fmtN(r.sampled)} lookups of this domain in 24 hours.</div>`
       : `<span class="sub">No recent lookups found in Pi-hole's query log.</span>`;

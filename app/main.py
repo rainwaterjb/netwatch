@@ -359,10 +359,17 @@ def device_history(mac: str = Path(pattern=MAC_PATTERN), days: int = Query(1, ge
     }
 
 
-@app.get("/api/devices/{mac}/dns")
-def device_dns(mac: str = Path(pattern=MAC_PATTERN), hours: int = Query(24, ge=1, le=24)):
+def _need_pihole():
     if not pihole.enabled:
         raise HTTPException(404, "Pi-hole integration is not configured")
+    # DNS lookups reveal what everyone in the house browses: never show them on an open dashboard.
+    if not cfg.web_password:
+        raise HTTPException(403, "Set WEB_PASSWORD in .env to see DNS details: they show what each device looks up")
+
+
+@app.get("/api/devices/{mac}/dns")
+def device_dns(mac: str = Path(pattern=MAC_PATTERN), hours: int = Query(24, ge=1, le=24)):
+    _need_pihole()
     dev = store.get_device(mac.lower())
     if not dev or not dev.get("ip"):
         raise HTTPException(404, "Unknown device")
@@ -565,9 +572,6 @@ def internet(days: int = Query(30, ge=1, le=365)):
 DOMAIN_RE = re.compile(r"^(?=.{1,253}$)[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?$")
 
 
-def _need_pihole():
-    if not pihole.enabled:
-        raise HTTPException(404, "Pi-hole integration is not configured")
 
 
 @app.get("/api/dns/top")

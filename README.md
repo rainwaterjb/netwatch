@@ -221,6 +221,7 @@ PIHOLE_PASSWORD=<app password>
 - Create an **app password** in Pi-hole under *Settings → Web interface / API* rather than using your main password. If your Pi-holes have different passwords, list them in the same order, comma-separated.
 - If you use Pi-hole's default self-signed HTTPS address, set `PIHOLE_VERIFY_TLS=false`, or use its `http://` address on your LAN.
 - NetWatch only reads from Pi-hole; it never changes Pi-hole settings.
+- DNS details (per-device domains and the Top domains tab) need a dashboard login (`WEB_PASSWORD`), because they show what each device looks up. Query counts and chatty-device alerts work either way.
 - Devices are matched by IP address, so a device that has made no DNS queries through Pi-hole shows no numbers.
 
 ## Wake-on-LAN
@@ -442,7 +443,8 @@ NetWatch is designed to run on a trusted home or lab network. It ships with thes
 - Cross-site request protection: state-changing requests from other websites are rejected, using the `Sec-Fetch-Site` and `Origin` headers.
 - Optional `ALLOWED_HOSTS` allow-list to block DNS-rebinding attacks.
 - Strict security headers: Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff`, and `no-referrer`.
-- Input validation on all API parameters. All SQL uses parameterized queries. All device data is HTML-escaped in the dashboard.
+- Input validation on all API parameters. All SQL uses parameterized queries. All device data, and everything read from your router and Pi-hole (device names, domain names), is HTML-escaped in the dashboard.
+- DNS details (top domains, which device looked up what) show what everyone on the network browses, so they're only available when `WEB_PASSWORD` is set.
 - Error details from mail and push servers are logged, not returned to the browser.
 
 **Dependencies**
