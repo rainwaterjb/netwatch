@@ -55,12 +55,20 @@ def arp_scan(network, iface, timeout=3.0, retry=1):
     return {r[ARP].psrc: r[ARP].hwsrc.lower() for _, r in ans}
 
 
-def probe(ip, iface, timeout=2.0, attempts=3):
-    """Targeted ARP to one IP with retries. Returns the MAC that answered, or None."""
+def probe(ip, iface, timeout=2.0, attempts=3, mac=None):
+    """Targeted ARP to one IP. Returns the MAC that answered, or None.
+
+    When the device's MAC is known, the request is sent straight to it
+    (unicast) first. Wi-Fi access points buffer unicast frames for clients in
+    power-save mode and deliver them when the client wakes for the next
+    beacon, while broadcasts are often missed by dozing phones and tablets.
+    The last attempt is a broadcast in case the device's MAC changed.
+    """
     ARP, Ether, _, _, _, srp = _scapy()
-    for _ in range(attempts):
-        ans, _ = srp(Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip),
-                     iface=iface, timeout=timeout, verbose=False)
+    for i in range(attempts):
+        unicast = bool(mac) and i < attempts - 1
+        dst = mac if unicast else "ff:ff:ff:ff:ff:ff"
+        ans, _ = srp(Ether(dst=dst) / ARP(pdst=ip), iface=iface, timeout=timeout, verbose=False)
         for _, r in ans:
             return r[ARP].hwsrc.lower()
     return None

@@ -383,7 +383,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 
 - **"Free" means nothing answered right now.** A powered-off device may still hold a DHCP lease, and IPs reserved on your router may look free (unless the Linksys integration is enabled). Before assigning a static IP, pick one outside your router's DHCP pool. The amber cells show addresses recently used by known devices.
 - **Randomized MAC addresses.** Modern phones and laptops often use a private MAC per Wi-Fi network; these show as "Private (randomized MAC)". The address is normally stable for a given network. If a device rotates it, it will show up as a new device.
-- **Sleeping phones.** Phones can ignore ARP for several minutes while idle. If you watch a phone, raise `OFFLINE_AFTER_MISSED_SCANS` (e.g. to 10) to avoid false alarms.
+- **Sleeping phones.** Phones and tablets in power-save mode often ignore the regular scan. Before marking any device offline, NetWatch checks it directly at its MAC address, which most dozing devices still answer. If a device still flaps on and off, raise `OFFLINE_AFTER_MISSED_SCANS` (e.g. to 10).
 - **Hostnames** depend on your router or DNS server publishing DHCP hostnames. If the column is blank, name devices in the dashboard.
 - **IPv4 only.** IPv6-only devices aren't discovered.
 - **Presence history** comes from the online/offline events NetWatch records, so it covers the activity-log retention period (`EVENT_RETENTION_DAYS`, default 90 days). Offline times are recorded when NetWatch notices, after the missed-scan threshold.

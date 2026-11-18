@@ -117,6 +117,7 @@ def status():
         "last_scan": monitor.last_scan,
         "last_scan_duration": monitor.last_scan_duration,
         "last_error": monitor.last_error,
+        "rechecks": {"checked": monitor.rechecked, "still_here": monitor.recheck_saved},
         "online": sum(1 for d in devices if d["online"]),
         "known": len(devices),
         "phone_enabled": notifier.phone_enabled,

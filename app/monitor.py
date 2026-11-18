@@ -3,6 +3,7 @@ import ipaddress
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from . import scanner as default_scanner
 from .alerts import AlertManager
@@ -59,6 +60,8 @@ class Monitor:
         self._stop = threading.Event()
         self._scan_lock = threading.Lock()
         self._last_prune = 0
+        self.rechecked = 0          # devices re-checked before being marked offline
+        self.recheck_saved = 0      # ...that turned out to still be there
 
     # Lifecycle
     def setup(self):
@@ -117,9 +120,11 @@ class Monitor:
             for mac, ip in seen.items():
                 self._handle_seen(mac, ip, now)
 
-            for dev in self.store.online_devices():
-                if dev["mac"] not in seen:
-                    self._handle_missing(dev, now)
+            missing = [d for d in self.store.online_devices() if d["mac"] not in seen]
+            answered = self._recheck(
+                [d for d in missing if d["missed_scans"] + 1 >= self.cfg.offline_after and d["ip"]])
+            for dev in missing:
+                self._handle_missing(dev, now, answered)
 
             if now - self._last_prune > 86400:
                 self.store.prune_events(now - self.cfg.event_retention_days * 86400)
@@ -172,22 +177,42 @@ class Monitor:
                 )
         self.store.update_device(mac, **updates)
 
-    def _handle_missing(self, dev, now):
+    def _recheck(self, devices):
+        """Before marking devices offline, ARP each one directly (in parallel).
+
+        Phones, tablets and sleeping laptops often ignore the broadcast sweep
+        while in power-save mode but still answer a request sent straight to
+        their MAC address. Returns the set of MACs that answered.
+        """
+        if not devices:
+            return set()
+
+        def one(dev):
+            try:
+                return dev["mac"] if self.scanner.probe(dev["ip"], self.iface, mac=dev["mac"]) == dev["mac"] else None
+            except Exception:
+                log.exception("Re-check of %s failed", dev["ip"])
+                return None
+
+        with ThreadPoolExecutor(max_workers=min(16, len(devices)), thread_name_prefix="recheck") as pool:
+            answered = {m for m in pool.map(one, devices) if m}
+        if answered:
+            log.debug("Re-check: %d of %d device(s) still here", len(answered), len(devices))
+        self.rechecked += len(devices)
+        self.recheck_saved += len(answered)
+        return answered
+
+    def _handle_missing(self, dev, now, answered=frozenset()):
         mac = dev["mac"]
         missed = dev["missed_scans"] + 1
         if missed < self.cfg.offline_after:
             self.store.update_device(mac, missed_scans=missed)
             return
 
-        # Before alerting, give a watched device one more targeted chance
-        # (sleeping phones often miss a broadcast sweep).
-        if is_watched(dev) and dev["ip"]:
-            try:
-                if self.scanner.probe(dev["ip"], self.iface) == mac:
-                    self.store.update_device(mac, missed_scans=0, last_seen=now)
-                    return
-            except Exception:
-                log.exception("Re-probe of %s failed", dev["ip"])
+        # It answered a direct re-check: still here, just dozing.
+        if mac in answered:
+            self.store.update_device(mac, missed_scans=0, last_seen=now)
+            return
 
         self.store.update_device(mac, online=0, missed_scans=missed)
         connected_for = (dev["last_seen"] or now) - (dev["online_since"] or dev["last_seen"] or now)

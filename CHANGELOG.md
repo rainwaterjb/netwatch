@@ -4,6 +4,12 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.5.1 (2026-11-17): Fewer false "offline" events from phones and tablets
+- Before marking **any** device offline (not only watched ones), NetWatch now checks it directly one more time.
+- The re-check sends the request straight to the device's MAC address first. Wi-Fi access points hold direct messages for devices in power-save mode, so dozing phones, tablets and laptops answer it even when they ignore the regular broadcast scan. A broadcast is still tried last, in case the device's address changed.
+- Re-checks run in parallel, so scans stay fast with many devices.
+- Devices that are really gone still go offline after the usual missed scans, and alerts work as before.
+
 ## v1.5.0 (2026-11-17): Service checks, internet tracking, Pi-hole, and more
 New features:
 - **Service checks** (new Services tab): watch a web page (HTTP/HTTPS), a TCP port or ping, with uptime %, response times, and alerts when a service goes down or comes back. Checks can follow a device, so they survive IP changes.
