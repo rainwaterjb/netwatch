@@ -26,7 +26,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Export** | Device list as CSV and a full database backup, one click each. |
 | **New-device alerts** | Optionally get notified whenever a device the tool has never seen joins your network. |
 | **Activity log** | A timeline of new devices, disconnects, reconnects, and IP address changes. |
-| **Router integration** *(optional)* | For Linksys Velop/Atlas routers: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses the names from your router. Optionally add and remove DHCP reservations from a **Reservations** tab. |
+| **Router integration** *(optional)* | Connects to **OPNsense, pfSense, UniFi, OpenWrt or Linksys**: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses your router's device names. Optionally add and remove DHCP reservations from a **Reservations** tab. |
 | **Phone notifications** | Through [ntfy](https://ntfy.sh) (free, open source, can be self-hosted) and/or [Pushover](https://pushover.net). |
 | **Email notifications** | Through any SMTP server (your mail provider, Gmail with an app password, a self-hosted relay, etc.). |
 | **Works on mobile** | The dashboard adapts to phones and tablets: tables become cards, with touch-friendly controls. |
@@ -225,22 +225,114 @@ Offline devices have a **Wake** button (also in the detail panel). It sends a st
 
 ---
 
-## Linksys router integration (optional)
+## Router integration (optional)
 
-If your router is a Linksys Velop or Atlas mesh system, NetWatch can read its DHCP settings through the router's local JNAP API (the same API the Linksys web interface uses). With it enabled:
+NetWatch can connect to your router to read its DHCP settings and, if you allow it, manage DHCP reservations. Supported routers:
 
-- **IP map:** reserved addresses are shown in purple, even when the device is off, so they're never mistaken for free. Free addresses *outside* the DHCP pool get a dashed outline; these are the ones safe to assign as static IPs. A **Copy static-safe IPs** button copies just those.
-- **Devices:** reservation descriptions and device names from the Linksys app are used as display names, which also appear in alerts. Devices whose reservation points at a different IP than they're using get a warning badge.
+| Router | `ROUTER_TYPE` | Connects with | Reservations stored as | Reserved IPs must be |
+|---|---|---|---|---|
+| **OPNsense** | `opnsense` | API key + secret | Dnsmasq "Hosts" or Kea "Reservations" (auto-detected) | anywhere in the subnet |
+| **pfSense** | `pfsense` | REST API package + API key | DHCP "Static mappings" | **outside** the DHCP pool |
+| **UniFi** (UDM, UDR, UCG, Cloud Key, self-hosted) | `unifi` | API key, or a local admin account | Client "Fixed IP" | anywhere in the subnet |
+| **OpenWrt** | `openwrt` | ubus JSON-RPC (root login) | `dhcp` "host" entries | anywhere in the subnet |
+| **Linksys** Velop / Atlas | `linksys` | admin password (local JNAP API) | DHCP reservations | **inside** the DHCP pool |
+
+With a router connected:
+
+- **IP map:** reserved addresses are shown in purple, even when the device is off, so they're never mistaken for free. Free addresses *outside* the DHCP pool get a dashed outline; these are the ones safe to set as static IPs on a device itself. **Copy static-safe IPs** copies just those.
+- **Devices:** reservation descriptions and router device names are used as display names, which also appear in alerts. A device whose reservation points at a different IP than it's using gets a warning badge.
 - **Reservations tab:** lists every DHCP reservation on the router and whether each device is actually using its reserved address.
 
-Enable it in `.env`:
+If a sync fails, NetWatch shows the reason in **Settings → Integrations** and keeps working without router data.
+
+### Setting up your router
+
+<details>
+<summary><b>OPNsense</b></summary>
+
+1. In OPNsense, go to **System → Access → Users** and create a user for NetWatch, or use an existing one.
+2. Give it the privilege for your DHCP server: **Services: Dnsmasq DNS/DHCP: Settings** (Dnsmasq, the default on new installs) or the **Kea DHCP** privileges (Kea).
+3. In that user's **API keys** section, create a key. OPNsense downloads a file containing the key and secret, and shows the secret only once.
 
 ```
-LINKSYS_URL=http://192.168.1.1
-LINKSYS_PASSWORD=<router admin password>
+ROUTER_TYPE=opnsense
+ROUTER_URL=https://192.168.1.1
+ROUTER_API_KEY=<key>
+ROUTER_API_SECRET=<secret>
+ROUTER_VERIFY_TLS=false      # OPNsense's default certificate is self-signed
 ```
 
-To check that your router supports it before enabling (the password prompt keeps it out of your shell history):
+NetWatch detects whether you use Dnsmasq or Kea. Set `ROUTER_DHCP=dnsmasq` or `ROUTER_DHCP=kea` to choose explicitly. The legacy ISC DHCP server has no API for reservations, so it isn't supported.
+</details>
+
+<details>
+<summary><b>pfSense</b></summary>
+
+1. Install the community REST API package (**pfSense-pkg-RESTAPI**, by pfrest) on the firewall, following its instructions.
+2. Under **System → REST API → Keys**, create an API key.
+
+```
+ROUTER_TYPE=pfsense
+ROUTER_URL=https://192.168.1.1
+ROUTER_API_KEY=<key>
+ROUTER_INTERFACE=lan         # the DHCP server's interface
+ROUTER_VERIFY_TLS=false      # pfSense's default certificate is self-signed
+```
+
+pfSense requires static mappings to be **outside** the DHCP pool, and NetWatch enforces the same rule. After each change NetWatch applies the DHCP server configuration.
+</details>
+
+<details>
+<summary><b>UniFi</b></summary>
+
+Use **one** of these:
+
+- **API key (recommended):** create one in the UniFi Network application (**Settings → Control Plane → Integrations**, or under your admin's profile on some versions).
+  ```
+  ROUTER_TYPE=unifi
+  ROUTER_URL=https://192.168.1.1
+  ROUTER_API_KEY=<key>
+  ROUTER_VERIFY_TLS=false
+  ```
+- **Local admin account:** create a *local* (not cloud/SSO) admin in UniFi OS. Accounts that use 2FA can't log in through the API.
+  ```
+  ROUTER_TYPE=unifi
+  ROUTER_URL=https://192.168.1.1
+  ROUTER_USERNAME=netwatch
+  ROUTER_PASSWORD=<password>
+  ROUTER_VERIFY_TLS=false
+  ```
+
+For a site other than the default, set `ROUTER_SITE` to the site's short name (from the URL in the UniFi app). A reservation is the client's **Fixed IP** setting; the controller pushes it to the gateway automatically.
+</details>
+
+<details>
+<summary><b>OpenWrt</b></summary>
+
+OpenWrt's web interface (LuCI) includes the ubus JSON-RPC endpoint NetWatch uses.
+
+```
+ROUTER_TYPE=openwrt
+ROUTER_URL=https://192.168.1.1       # or http:// if LuCI isn't on HTTPS
+ROUTER_USERNAME=root
+ROUTER_PASSWORD=<root password>
+ROUTER_INTERFACE=lan
+ROUTER_VERIFY_TLS=false              # if LuCI uses a self-signed certificate
+```
+
+A dedicated rpcd user also works if its ACL allows `uci` read/write on the `dhcp` and `network` configs. Reservations are saved as `host` entries in `/etc/config/dhcp`, and dnsmasq reloads automatically when they're committed.
+</details>
+
+<details>
+<summary><b>Linksys Velop / Atlas</b></summary>
+
+```
+ROUTER_TYPE=linksys
+ROUTER_URL=http://192.168.1.1
+ROUTER_PASSWORD=<router admin password>
+```
+
+NetWatch uses the router's local JNAP API, the same one the Linksys web interface uses. To check that your router supports it (the password prompt keeps it out of your shell history):
 
 ```bash
 read -s -p "Router admin password: " P; echo
@@ -251,29 +343,28 @@ curl -s -X POST http://192.168.1.1/JNAP/ \
 unset P
 ```
 
-A response starting with `"result": "OK"` means it's supported.
+A response starting with `"result": "OK"` means it's supported. JNAP is undocumented, so a firmware update could change it. Most Linksys routers serve it over plain HTTP, so the admin password crosses your LAN encoded but not encrypted. Linksys requires reservations to be **inside** the DHCP pool.
 
-Notes:
-- **Read-only unless you opt in.** By default NetWatch never changes router settings. See below to manage reservations.
-- **Unofficial API.** JNAP isn't documented by Linksys, so a firmware update could change it. If a sync fails, NetWatch shows a banner and keeps working without router data.
-- **Plain HTTP.** Most Linksys routers serve JNAP over unencrypted HTTP, so the admin password crosses your LAN encoded but not encrypted. Only enable this on a network you trust.
+Older NetWatch settings (`LINKSYS_URL`, `LINKSYS_PASSWORD`, `LINKSYS_ALLOW_CHANGES`) still work.
+</details>
 
 ### Managing reservations from NetWatch (optional)
 
-With `LINKSYS_ALLOW_CHANGES=true` **and** a `WEB_PASSWORD` set, the Reservations tab lets you:
+With `ROUTER_ALLOW_CHANGES=true` **and** a `WEB_PASSWORD` set, the Reservations tab lets you:
 
-- **Reserve an address:** pick a device (or enter a MAC address), choose an IP, and add a description. A **Reserve** button on the Devices tab pre-fills the form with that device's current IP.
+- **Reserve an address:** pick a device (or enter a MAC address), choose an IP, and add a description. A **Reserve** button on the Devices tab pre-fills the form with that device's current IP when the router allows it.
 - **Remove a reservation.**
 
-Safeguards:
+These safeguards apply to every router:
 
-- **Validated first.** The IP must be on your network and inside the DHCP pool (a Linksys requirement). It can't be already reserved or in use by another device, and it can't be the router's own address.
-- **Backed up.** The router's full LAN settings are saved to `/data/router-backups/` before every change. The last 30 backups are kept, readable only by the container user.
-- **Only reservations change.** NetWatch reads the live settings, changes only the reservation list, and sends everything else back untouched.
-- **Verified and rolled back.** After saving, NetWatch reads the settings again. If anything other than the reservation list changed, or the reservation didn't stick, it restores the previous settings automatically and shows an error.
+- **Validated first.** The IP must be on your network and follow your router's pool rule (see the table above). It can't be already reserved or in use by another device, and it can't be the router's own address.
+- **Backed up.** The router's reservations (and, for Linksys, its full LAN settings) are saved to `/data/router-backups/` before every change. The last 30 backups are kept, readable only by the container user.
+- **Verified and undone if wrong.** After saving, NetWatch reads the reservations back from the router. If the change isn't exactly as expected, or any *other* reservation changed, NetWatch undoes it and shows an error.
 - **Logged.** Every change appears in the Activity log.
 
-A device picks up a new reservation the next time it renews its DHCP lease. Reconnect or reboot it to apply it immediately. Until then, its status shows as *Waiting*.
+Give NetWatch's router account only the permissions it needs (DHCP read/write) rather than full admin where your router allows it. If you only want to *see* reservations, leave `ROUTER_ALLOW_CHANGES=false`.
+
+A device picks up a new reservation the next time it renews its DHCP lease. Reconnect or reboot it to apply it immediately; until then its status shows as *Waiting*.
 
 To view or copy a backup:
 
@@ -310,10 +401,16 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURITY` | – / `587` / `starttls` | Mail server; security is `starttls`, `ssl`, or `none` |
 | `SMTP_USER` / `SMTP_PASSWORD` | *(empty)* | Mail server login |
 | `SMTP_FROM` / `SMTP_TO` | *(empty)* | Sender address; comma-separated recipients |
-| `LINKSYS_URL` | *(empty)* | Linksys router address, e.g. `http://192.168.1.1`. Empty disables the integration. |
-| `LINKSYS_USERNAME` / `LINKSYS_PASSWORD` | `admin` / *(empty)* | Router admin login (read-only use) |
+| `ROUTER_TYPE` | *(empty)* | `opnsense`, `pfsense`, `unifi`, `openwrt` or `linksys`. Empty disables the integration. |
+| `ROUTER_URL` | *(empty)* | Router address, e.g. `https://192.168.1.1` |
+| `ROUTER_API_KEY` / `ROUTER_API_SECRET` | *(empty)* | API credentials (OPNsense: key + secret; pfSense and UniFi: key) |
+| `ROUTER_USERNAME` / `ROUTER_PASSWORD` | *(empty)* | Login (UniFi local admin, OpenWrt, Linksys) |
+| `ROUTER_VERIFY_TLS` | `true` | Set `false` for the router's self-signed HTTPS certificate |
+| `ROUTER_INTERFACE` | `lan` | pfSense DHCP interface / OpenWrt interface |
+| `ROUTER_SITE` | `default` | UniFi site |
+| `ROUTER_DHCP` | `auto` | OPNsense DHCP server: `auto`, `dnsmasq` or `kea` |
 | `ROUTER_POLL_INTERVAL` | `300` | Seconds between router syncs |
-| `LINKSYS_ALLOW_CHANGES` | `false` | Allow adding/removing DHCP reservations (also requires `WEB_PASSWORD`) |
+| `ROUTER_ALLOW_CHANGES` | `false` | Allow adding/removing DHCP reservations (also requires `WEB_PASSWORD`) |
 | `WAN_CHECK` | `true` | Internet outage tracking on/off |
 | `WAN_CHECK_INTERVAL` | `30` | Seconds between internet checks |
 | `WAN_CHECK_TARGETS` | `1.1.1.1:443,8.8.8.8:443,9.9.9.9:443` | Public host:port pairs to test |
@@ -381,7 +478,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 
 ## Limitations and tips
 
-- **"Free" means nothing answered right now.** A powered-off device may still hold a DHCP lease, and IPs reserved on your router may look free (unless the Linksys integration is enabled). Before assigning a static IP, pick one outside your router's DHCP pool. The amber cells show addresses recently used by known devices.
+- **"Free" means nothing answered right now.** A powered-off device may still hold a DHCP lease, and IPs reserved on your router may look free (unless a router is connected). Before assigning a static IP, pick one outside your router's DHCP pool. The amber cells show addresses recently used by known devices.
 - **Randomized MAC addresses.** Modern phones and laptops often use a private MAC per Wi-Fi network; these show as "Private (randomized MAC)". The address is normally stable for a given network. If a device rotates it, it will show up as a new device.
 - **Sleeping phones.** Phones and tablets in power-save mode often ignore the regular scan. Before marking any device offline, NetWatch checks it directly at its MAC address, which most dozing devices still answer. If a device still flaps on and off, raise `OFFLINE_AFTER_MISSED_SCANS` (e.g. to 10).
 - **Hostnames** depend on your router or DNS server publishing DHCP hostnames. If the column is blank, name devices in the dashboard.
@@ -402,8 +499,8 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `GET` | `/api/ips` | Every address in the subnet with its status |
 | `GET` | `/api/events?limit=&mac=` | Activity log |
 | `GET` | `/api/reservations` | DHCP reservations on the router, with device status |
-| `POST` | `/api/reservations` | Add a reservation: `mac`, `ip`, `description` (requires `LINKSYS_ALLOW_CHANGES`) |
-| `DELETE` | `/api/reservations/{mac}` | Remove a reservation (requires `LINKSYS_ALLOW_CHANGES`) |
+| `POST` | `/api/reservations` | Add a reservation: `mac`, `ip`, `description` (requires `ROUTER_ALLOW_CHANGES`) |
+| `DELETE` | `/api/reservations/{mac}` | Remove a reservation (requires `ROUTER_ALLOW_CHANGES`) |
 | `POST` | `/api/scan` | Trigger a scan now |
 | `GET` | `/api/devices/{mac}/history?days=` | Presence timeline, availability, IP history, recent events |
 | `GET` | `/api/devices/{mac}/dns` | Pi-hole query stats and top domains for a device |
@@ -435,7 +532,8 @@ netwatch/
 │   ├── serve.py         # Entry point: HTTPS server + HTTP redirect
 │   ├── tls.py           # Self-signed certificate creation/renewal
 │   ├── healthcheck.py   # Docker health check
-│   ├── router_linksys.py  # Optional Linksys JNAP integration (reservations)
+│   ├── routers/         # Router drivers: OPNsense, pfSense, UniFi, OpenWrt (+ shared base)
+│   ├── router_linksys.py  # Linksys JNAP driver
 │   ├── alerts.py        # Central alert path: quiet hours, snooze, held alerts
 │   ├── services.py      # Service checks (HTTP, TCP, ping)
 │   ├── wan.py           # Internet outage tracking

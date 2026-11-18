@@ -26,7 +26,7 @@ from .pihole import PiholeIntegration
 from .services import KINDS as CHECK_KINDS, ServiceChecker
 from .wan import WanMonitor
 from .notifier import Notifier
-from .router_linksys import LinksysRouter, RouterError
+from .routers import RouterError, create_router
 from .security import SecurityMiddleware
 from . import tls
 
@@ -36,7 +36,9 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"),
 cfg = Config.from_env()
 store = Store(cfg.db_path)
 notifier = Notifier(cfg)
-router = LinksysRouter(cfg)
+router = create_router(cfg)
+router.network_hint = lambda: monitor.network or (
+    ipaddress.IPv4Network(cfg.subnet, strict=False) if cfg.subnet else None)
 alerts = AlertManager(store, notifier)
 monitor = Monitor(cfg, store, notifier, router=router, alerts=alerts)
 checker = ServiceChecker(store, alerts, router=router)
@@ -143,15 +145,16 @@ def _router_status():
         "enabled": True, "last_sync": s["last_sync"], "error": s["error"],
         "dhcp_first": s["dhcp_first"], "dhcp_last": s["dhcp_last"],
         "reservations": len(s["reservations"]), "max_desc": s["max_desc"],
+        "brand": router.brand, "pool_rule": router.pool_rule, "pool_rule_text": router.pool_rule_text,
         "can_change": can_change, "change_disabled_reason": reason,
     }
 
 
 def _change_permission():
     if not router.enabled:
-        return False, "Linksys integration is not configured"
-    if not cfg.linksys_allow_changes:
-        return False, "Set LINKSYS_ALLOW_CHANGES=true in .env to manage reservations here"
+        return False, "Router integration is not configured"
+    if not router.allow_changes:
+        return False, "Set ROUTER_ALLOW_CHANGES=true in .env to manage reservations here"
     if not cfg.web_password:
         return False, "Set WEB_PASSWORD in .env first: router changes require a dashboard login"
     return True, None
@@ -160,7 +163,7 @@ def _change_permission():
 @app.get("/api/reservations")
 def reservations():
     if not router.enabled:
-        raise HTTPException(404, "Linksys integration is not configured")
+        raise HTTPException(404, "Router integration is not configured")
     snap = router.snapshot()
     devices = {d["mac"]: d for d in store.all_devices()}
     out = []
@@ -584,6 +587,7 @@ def ip_map():
         d = by_ip.get(ip)
         res = reserved.get(ip)
         entry = {"ip": ip, "in_pool": router.in_dhcp_pool(ip, snap) if snap else None,
+                 "reservable": router.static_ok(ip, snap) if snap else None,
                  "reserved": bool(res), "reservation": res["description"] if res else None}
         if d is not None:
             entry.update(status="online" if d["online"] else "offline", mac=d["mac"],

@@ -84,6 +84,20 @@ class Config:
     web_password: str = ""              # empty = no login (LAN-only use)
     allowed_hosts: list[str] = field(default_factory=list)  # empty = any Host header
 
+    # Router integration (ROUTER_TYPE: linksys | opnsense | pfsense | unifi | openwrt)
+    router_type: str = ""
+    router_url: str = ""
+    router_username: str = ""
+    router_password: str = ""
+    router_api_key: str = ""
+    router_api_secret: str = ""
+    router_verify_tls: bool = True
+    router_allow_changes: bool = False
+    router_site: str = "default"        # UniFi site name
+    router_interface: str = "lan"       # pfSense DHCP interface / OpenWrt interface
+    router_dhcp: str = "auto"           # OPNsense: auto | dnsmasq | kea
+
+    # Legacy names (v1.1-v1.5); still read, mapped onto router_* above
     # Optional read-only Linksys Velop/Atlas router integration (JNAP)
     linksys_url: str = ""               # e.g. http://192.168.1.1
     linksys_username: str = "admin"
@@ -132,6 +146,18 @@ class Config:
             web_username=_env("WEB_USERNAME", "admin"),
             web_password=_env("WEB_PASSWORD"),
             allowed_hosts=[h.strip().lower() for h in _env("ALLOWED_HOSTS").split(",") if h.strip()],
+            router_type=_env("ROUTER_TYPE").lower() or ("linksys" if _env("LINKSYS_URL") else ""),
+            router_url=_env("ROUTER_URL") or _env("LINKSYS_URL"),
+            router_username=_env("ROUTER_USERNAME") or _env("LINKSYS_USERNAME"),
+            router_password=_env("ROUTER_PASSWORD") or _env("LINKSYS_PASSWORD"),
+            router_api_key=_env("ROUTER_API_KEY"),
+            router_api_secret=_env("ROUTER_API_SECRET"),
+            router_verify_tls=_env("ROUTER_VERIFY_TLS", "true").lower() not in ("0", "false", "no", "off"),
+            router_allow_changes=(_env("ROUTER_ALLOW_CHANGES") or _env("LINKSYS_ALLOW_CHANGES") or "false").lower()
+                in ("1", "true", "yes"),
+            router_site=_env("ROUTER_SITE", "default"),
+            router_interface=_env("ROUTER_INTERFACE", "lan"),
+            router_dhcp=_env("ROUTER_DHCP", "auto").lower(),
             linksys_url=_env("LINKSYS_URL"),
             linksys_username=_env("LINKSYS_USERNAME", "admin"),
             linksys_password=_env("LINKSYS_PASSWORD"),

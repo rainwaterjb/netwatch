@@ -652,7 +652,7 @@ const resStatus = r => ({
 
 function renderRes() {
   const rt = state.status.router || {};
-  $("#res-info").textContent = rt.dhcp_first ? `DHCP pool ${rt.dhcp_first} – ${rt.dhcp_last}. Linksys only allows reservations inside the pool.` : "";
+  $("#res-info").textContent = rt.dhcp_first ? `DHCP pool ${rt.dhcp_first} – ${rt.dhcp_last}. ${rt.pool_rule_text || ""}.` : "";
   $("#res-body").innerHTML = state.res.map(r => {
     const [cls, txt] = resStatus(r);
     return `<tr>
@@ -679,14 +679,15 @@ function renderRes() {
     `<option value="${d.mac}">${esc(devName(d))} — ${esc(d.ip)}${d.online ? "" : " (offline)"}</option>`).join("") +
     `<option value="manual">Other (enter MAC)…</option>`;
   if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
-  const inPool = state.ips.filter(i => i.status === "free" && i.in_pool);
-  $("#rf-ip-list").innerHTML = inPool.slice(0, 200).map(i => `<option value="${i.ip}">`).join("");
+  const usable = state.ips.filter(i => i.status === "free" && i.reservable !== false);
+  $("#rf-ip-list").innerHTML = usable.slice(0, 200).map(i => `<option value="${i.ip}">`).join("");
 }
 
-function inPool(ip) {
+function inPool(ip) {   // can this IP be reserved under the router's pool rule?
   const rt = state.status.router || {};
-  if (!rt.dhcp_first) return true;
-  return ipNum(ip) >= ipNum(rt.dhcp_first) && ipNum(ip) <= ipNum(rt.dhcp_last);
+  if (!rt.dhcp_first || rt.pool_rule === "any") return true;
+  const inside = ipNum(ip) >= ipNum(rt.dhcp_first) && ipNum(ip) <= ipNum(rt.dhcp_last);
+  return rt.pool_rule === "inside" ? inside : !inside;
 }
 const cleanDesc = t => (t || "").replace(/[^\w .\-()']/g, "").slice(0, (state.status.router || {}).max_desc || 63);
 
@@ -1020,7 +1021,7 @@ function renderSettings() {
   const rt = st.router || {}, ph = st.pihole || {}, inet = st.internet || {};
   const line = (name, on, detail) => `<li><span>${name}</span><span class="sub">${on ? detail : "not configured"}</span></li>`;
   $("#integrations").innerHTML = `<ul class="plain">
-    ${line("Linksys router", rt.enabled, rt.error ? `<span style="color:var(--red)">${esc(rt.error)}</span>` : `${rt.reservations} reservations · synced ${rt.last_sync ? dur(st.now - rt.last_sync) + " ago" : "pending"}`)}
+    ${line(rt.brand ? rt.brand + " router" : "Router", rt.enabled, rt.error ? `<span style="color:var(--red)">${esc(rt.error)}</span>` : `${rt.reservations} reservations · synced ${rt.last_sync ? dur(st.now - rt.last_sync) + " ago" : "pending"}`)}
     ${line("Pi-hole", ph.enabled, `${esc((ph.servers || []).join(", "))} · ${Object.keys(ph.errors || {}).length ? `<span style="color:var(--red)">${esc(Object.values(ph.errors).join("; "))}</span>` : `synced ${ph.last_sync ? dur(st.now - ph.last_sync) + " ago" : "pending"}`}`)}
     ${line("Internet monitor", inet.enabled, inet.state === "down" ? "<span style='color:var(--red)'>down</span>" : `${inet.state} · 30-day uptime ${pct(inet.uptime_30d)}`)}
     ${line("Phone alerts", st.phone_enabled, "configured")}${line("Email alerts", st.email_enabled, "configured")}

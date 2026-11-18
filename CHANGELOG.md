@@ -4,6 +4,18 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.6.0 (2026-11-18): More routers (OPNsense, pfSense, UniFi, OpenWrt)
+- **Router integration now supports OPNsense, pfSense, UniFi and OpenWrt** as well as Linksys. Choose one with `ROUTER_TYPE`.
+  - **OPNsense:** Dnsmasq or Kea DHCP (auto-detected), via API key + secret.
+  - **pfSense:** DHCP static mappings, via the pfrest REST API package.
+  - **UniFi:** client fixed IPs, via API key or a local admin account (UniFi OS and self-hosted controllers).
+  - **OpenWrt:** `dhcp` host entries, via ubus JSON-RPC.
+- Every router gets the same features: reservations and DHCP pool on the IP map, router device names, the Reservations tab, and optional add/remove of reservations.
+- The same safeguards apply to every router: validation, a backup before each change, verification afterwards, and an automatic undo if the router didn't end up as expected.
+- Each router's own rules are enforced and explained, e.g. pfSense needs reservations **outside** the DHCP pool and Linksys **inside** it. The IP suggestions in the Reservations tab follow the rule.
+- New settings: `ROUTER_TYPE`, `ROUTER_URL`, `ROUTER_API_KEY`, `ROUTER_API_SECRET`, `ROUTER_USERNAME`, `ROUTER_PASSWORD`, `ROUTER_VERIFY_TLS`, `ROUTER_INTERFACE`, `ROUTER_SITE`, `ROUTER_DHCP`, `ROUTER_ALLOW_CHANGES`.
+- **No action needed for existing Linksys setups:** the old `LINKSYS_*` settings still work.
+
 ## v1.5.1 (2026-11-17): Fewer false "offline" events from phones and tablets
 - Before marking **any** device offline (not only watched ones), NetWatch now checks it directly one more time.
 - The re-check sends the request straight to the device's MAC address first. Wi-Fi access points hold direct messages for devices in power-save mode, so dozing phones, tablets and laptops answer it even when they ignore the regular broadcast scan. A broadcast is still tried last, in case the device's address changed.
