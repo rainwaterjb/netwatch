@@ -81,7 +81,8 @@ class Config:
 
     # Web UI security
     web_username: str = "admin"
-    web_password: str = ""              # empty = no login (LAN-only use)
+    web_password: str = ""              # empty = dashboard closed unless allow_no_login
+    allow_no_login: bool = False        # run the dashboard with no sign-in at all (not recommended)
     allowed_hosts: list[str] = field(default_factory=list)  # empty = any Host header
     public_url: str = ""                # link added to alerts, e.g. https://192.168.1.50:8443
     discovery: bool = True              # recognise devices (DHCP, mDNS, SSDP)
@@ -165,6 +166,7 @@ class Config:
             pihole_poll_interval=max(60, int(_env("PIHOLE_POLL_INTERVAL", "300"))),
             web_username=_env("WEB_USERNAME", "admin"),
             web_password=_env("WEB_PASSWORD"),
+            allow_no_login=_env("ALLOW_NO_LOGIN", "false").lower() in ("1", "true", "yes", "on"),
             allowed_hosts=[h.strip().lower() for h in _env("ALLOWED_HOSTS").split(",") if h.strip()],
             push_contact=_env("PUSH_CONTACT") if _env("PUSH_CONTACT").startswith(("mailto:", "https://")) else "",
             push_allowed_hosts=[h.strip().lower() for h in _env("PUSH_ALLOWED_HOSTS").split(",") if h.strip()],

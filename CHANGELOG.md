@@ -4,6 +4,13 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.14.0 (2026-11-18): Secure by default
+- **No password, no dashboard.** If `WEB_PASSWORD` isn't set (and there are no accounts), the dashboard and API now stay closed and show a page explaining how to set it, instead of being open to anyone on the network. Scanning, alerts and the health check keep running. Set `ALLOW_NO_LOGIN=true` to keep the old open behaviour (not recommended).
+- The example Prometheus + Grafana stack no longer ships a default Grafana password: it won't start until you set `GRAFANA_PASSWORD` in its own `.env`.
+- README: screenshots from a demo network.
+- Security review before the public release: secret scan of the full Git history, bandit static analysis, pip-audit (no known vulnerabilities) and a browser sweep that injected HTML into every device name, vendor, model, tag, check, rule, channel and DNS domain (nothing ran).
+- No database changes. **Rollback-safe**, but an older version with no `WEB_PASSWORD` is open to the network again.
+
 ## v1.13.1 (2026-11-18): Updating follows releases
 - `./update.sh` now installs the **latest release** instead of whatever is on the `main` branch, so a fresh install or an update always lands on a tested, published version. `./update.sh main` is there for trying unreleased fixes.
 - `./update.sh --list` says when a newer release is out.

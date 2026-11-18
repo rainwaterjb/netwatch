@@ -10,3 +10,4 @@ tests/
 certs/
 *.pem
 *.key
+docs/

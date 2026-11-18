@@ -9,6 +9,21 @@ NetWatch shows every device on your network and what it is, which IP addresses a
 
 It runs as a single Docker container. It works well on a small VM or LXC container on Proxmox, or on any Linux host that sits on the network you want to watch. **Latest release: see [Releases](https://github.com/rainwaterjb/netwatch/releases/latest)**, and [what's in each release](#releases-at-a-glance).
 
+## Screenshots
+
+*From a demo network with made-up devices.*
+
+![Overview: status tiles, the Needs attention list, live activity and the timeline](docs/screenshots/overview.png)
+
+| | |
+|---|---|
+| ![Devices list with device types, tags and per-device alerts](docs/screenshots/devices.png) | ![Device details: what it is, tags and presence history](docs/screenshots/device-detail.png) |
+| **Devices** with what each one is, tags and per-device alerts | **Device details** with presence history and availability |
+| ![Alert rules, open alerts and channels](docs/screenshots/alerts.png) | ![Service checks with uptime and response times](docs/screenshots/services.png) |
+| **Alerts**: rules, escalation and channels | **Services**: internet uptime and service checks |
+| ![Top DNS domains from Pi-hole](docs/screenshots/top-domains.png) | <img src="docs/screenshots/phone.png" alt="NetWatch on a phone" width="300"> |
+| **Top domains** from Pi-hole | **On a phone**, also installable as an app |
+
 ---
 
 ## Features
@@ -84,13 +99,13 @@ Because ARP is a layer-2 protocol, NetWatch must run on the same network (or VLA
 git clone https://github.com/rainwaterjb/netwatch.git
 cd netwatch
 cp .env.example .env
-nano .env                    # set SUBNET, WEB_PASSWORD and your notification settings
+nano .env                    # set SUBNET, WEB_PASSWORD (required) and your notification settings
 ./update.sh                  # builds and starts the latest release
 ```
 
 `./update.sh` checks out the newest **release** (not unreleased code on the `main` branch), builds the image and starts it. Prefer plain Docker Compose? `git checkout "$(git tag -l 'v*' --sort=-v:refname | head -n1)" && docker compose up -d --build` does the same.
 
-Then open `https://<host-ip>:8443` and sign in with `WEB_USERNAME` / `WEB_PASSWORD`. Your browser will warn about the certificate the first time; see [HTTPS](#https) to make that go away. `http://<host-ip>:8080` redirects to the HTTPS address.
+Then open `https://<host-ip>:8443` and sign in with `WEB_USERNAME` / `WEB_PASSWORD`. Until `WEB_PASSWORD` is set, the dashboard only shows a page asking you to set it (monitoring and alerts already run). Your browser will warn about the certificate the first time; see [HTTPS](#https) to make that go away. `http://<host-ip>:8080` redirects to the HTTPS address.
 
 Useful commands:
 
@@ -131,6 +146,7 @@ Full details are in [CHANGELOG.md](CHANGELOG.md) and on the [Releases page](http
 
 | Release | What it added | If you roll back to an older release |
 |---|---|---|
+| **v1.14.0** | Secure by default: with no `WEB_PASSWORD` the dashboard stays closed instead of open to the network (`ALLOW_NO_LOGIN=true` for the old behaviour); the example Grafana stack needs its own password; screenshots | With no `WEB_PASSWORD`, the dashboard is open to everyone on the network again |
 | **v1.13.1** | `./update.sh` installs the latest release (not unreleased code on `main`) and `--list` says when an update is out; README and `.env.example` brought up to date | `./update.sh` with no version follows `main` again |
 | **v1.13.0** | Prometheus `/metrics`, a Grafana dashboard and alert rules, JSON logs for Loki | `/metrics` is gone (Prometheus scrapes fail); logs go back to plain text |
 | **v1.12.0** | Installable app and native push notifications | App notifications stop; the app still opens as a web page |
@@ -704,7 +720,8 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `TLS_CERT_FILE` / `TLS_KEY_FILE` | *(empty)* | Certificate and key for `TLS=custom` |
 | `TZ` | `UTC` | Time zone used for timestamps in alerts |
 | `WEB_USERNAME` | `admin` | Dashboard login username |
-| `WEB_PASSWORD` | *(empty)* | Built-in admin password. **Strongly recommended.** Needed for sign-in, accounts, API tokens and DNS details. Empty disables login. |
+| `WEB_PASSWORD` | *(empty)* | Built-in admin password. **Required** to use the dashboard: while it's empty the dashboard stays closed (monitoring and alerts still run). Also needed for accounts, API tokens and DNS details. |
+| `ALLOW_NO_LOGIN` | `false` | Not recommended. `true` runs the dashboard with no sign-in at all when `WEB_PASSWORD` is empty, so anyone who can reach it can change everything. |
 | `ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames/IPs allowed to reach the dashboard |
 | `DISCOVERY` | `true` | Recognise devices from DHCP, Bonjour/mDNS and UPnP |
 | `DISCOVERY_INTERVAL` | `900` | Seconds between Bonjour/UPnP passes (min 300) |
@@ -801,7 +818,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 ```
 
 **Recommendations**
-- Set `WEB_PASSWORD` and `ALLOWED_HOSTS`.
+- Use a long random `WEB_PASSWORD` (`openssl rand -base64 24`) and set `ALLOWED_HOSTS`. Leave `ALLOW_NO_LOGIN` off.
 - Use a [trusted certificate](#a-free-trusted-certificate-with-lets-encrypt-and-cloudflare), or install the self-signed one on your devices, so you'd notice if a different certificate ever appeared.
 - Give each person their own account, and tools (Homepage, Prometheus) their own **read-only** API token.
 - Don't port-forward the dashboard to the internet. For remote access, use a VPN (WireGuard, Tailscale) or a reverse proxy with TLS and authentication.
@@ -922,6 +939,7 @@ netwatch/
 ├── CHANGELOG.md         # What changed in each release
 ├── SECURITY.md          # How to report a vulnerability privately
 ├── examples/monitoring/ # Prometheus config, alert rules, Grafana dashboard, optional Docker stack
+├── docs/screenshots/    # README screenshots (demo network)
 ├── .env.example         # Configuration template (copy to .env)
 ├── .gitignore
 └── .dockerignore

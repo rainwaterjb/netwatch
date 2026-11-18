@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse
+from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 
 from .auth import OPEN, AuthError
 
@@ -54,9 +54,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         self.cfg = cfg
         self.auth = auth
         self.allowed_hosts = set(cfg.allowed_hosts)
-        if not cfg.web_password:
-            log.warning("WEB_PASSWORD is not set: the dashboard has no login. "
-                        "Only expose it on a trusted network.")
+        if not cfg.web_password and cfg.allow_no_login:
+            log.warning("WEB_PASSWORD is not set and ALLOW_NO_LOGIN=true: the dashboard has no login. "
+                        "Anyone who can reach it can change settings.")
+        elif not cfg.web_password:
+            log.warning("WEB_PASSWORD is not set: the dashboard is closed until you set it in .env "
+                        "and restart. Monitoring and alerts keep running.")
 
     async def dispatch(self, request, call_next):
         path = request.url.path
@@ -89,6 +92,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             if who is None:
                 if self.auth.login_required:
                     return self._denied(request, path, "Sign in required", 401)
+                if not self.cfg.allow_no_login:
+                    return self._setup_needed(path)
                 who = OPEN
             # Cookies are sent automatically by the browser, so state changes made
             # with a session must also carry NetWatch's own header, which other
@@ -119,6 +124,16 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    @staticmethod
+    def _setup_needed(path):
+        """No password and no accounts: keep the dashboard closed instead of open to the whole network."""
+        msg = ("NetWatch has no sign-in set up. Set WEB_PASSWORD in .env and restart "
+               "(docker compose up -d). Monitoring and alerts keep running meanwhile.")
+        if path.startswith("/api/") or path == "/metrics":
+            return JSONResponse({"detail": msg}, status_code=503)
+        return HTMLResponse(SETUP_PAGE, status_code=503, headers={"Content-Security-Policy": PAGE_CSP,
+                                                                  "Cache-Control": "no-store"})
+
     def _denied(self, request, path, message, status):
         if path == "/" and request.method == "GET" and status == 401:
             return RedirectResponse("/login", status_code=303)
@@ -130,3 +145,19 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         if status == 401 and request.headers.get("x-netwatch") != "1":
             headers["WWW-Authenticate"] = 'Basic realm="NetWatch", charset="UTF-8"'
         return JSONResponse({"detail": message}, status_code=status, headers=headers)
+
+
+SETUP_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>NetWatch: set a password</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;background:#0d1117;color:#e6edf3;display:grid;place-items:center;
+min-height:100vh;margin:0}main{max-width:34rem;padding:2rem}code{background:#161b22;padding:.1rem .35rem;border-radius:4px}
+pre{background:#161b22;padding:1rem;border-radius:8px;overflow:auto}</style></head><body><main>
+<h1>Set a password first</h1>
+<p>NetWatch won't show the dashboard to your whole network without a sign-in.
+Monitoring and alerts are already running.</p>
+<p>In the NetWatch folder, set <code>WEB_PASSWORD</code> in <code>.env</code> and restart:</p>
+<pre>openssl rand -base64 24
+nano .env
+docker compose up -d</pre>
+<p>Then reload this page and sign in as <code>WEB_USERNAME</code> (default <code>admin</code>).</p>
+</main></body></html>"""
