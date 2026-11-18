@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NetWatch</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b0f14">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NetWatch">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <style>
   :root {
     --bg: #0b0f14; --panel: #11161d; --line: #1f2731; --text: #e6edf3; --muted: #8b98a5;
@@ -364,7 +372,9 @@
     #acc-add, #acc-tok-card .form, #acc-pw .form { grid-template-columns: 1fr !important; }
     table.acc tr { grid-template-columns: 1fr auto; }
     table.acc .acts { justify-content: flex-start; }
-    .who { width: 100%; justify-content: space-between; }
+    .hdr-actions { flex-wrap: wrap; }
+    .who { width: 100%; justify-content: space-between; order: -1; padding: 2px 2px 4px; }
+    .who button { flex: 0 0 auto !important; }
   }
   .rform { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
   .pill.ok { background: rgba(63,185,80,.15); color: var(--green); }
@@ -395,6 +405,7 @@
   <div class="hdr-actions">
     <button id="btn-scan" class="admin-only">Scan now</button>
     <button id="btn-test" class="admin-only">Send test alert</button>
+    <button id="btn-install" class="hidden" title="Install NetWatch as an app on this device">Install app</button>
     <span id="who" class="who hidden"></span>
   </div>
 </header>
@@ -666,6 +677,17 @@
   </section>
 
   <section id="tab-acc" class="hidden">
+    <div class="card" id="acc-push">
+      <h3>Notifications on this device</h3>
+      <p id="push-status" class="sub">Checking…</p>
+      <div class="opts" style="margin-top:6px">
+        <button class="primary hidden" id="push-on">Turn on notifications</button>
+        <button class="hidden" id="push-test">Send a test</button>
+        <button class="hidden" id="push-off">Turn off on this device</button>
+      </div>
+      <p class="note">This device then gets alerts that go to <b>Phone</b> (the device checkboxes, internet and chatty alerts) and alert rules that send to the <b>NetWatch app</b>. Messages are encrypted for this device; the push service (Apple, Google, Mozilla or Microsoft) can't read them.</p>
+      <div id="push-list-wrap" class="hidden" style="margin-top:10px"><div class="sub" id="push-list-title">Devices getting notifications</div><ul class="plain" id="push-list"></ul></div>
+    </div>
     <div class="card">
       <h3>Your account</h3>
       <div id="acc-me" class="sub"></div>
@@ -1665,7 +1687,10 @@ async function loadMe() {
   $("#nav-acc").style.display = me.kind === "open" ? "none" : "";
 }
 async function loadAccess() {
-  if ((state.me || {}).role !== "admin") { state.acc = null; return; }
+  const admin = (state.me || {}).role === "admin";
+  state.pushDevices = (await api(`/api/push/devices${admin ? "?everyone=true" : ""}`).catch(() => ({ devices: [] }))).devices;
+  renderPushList();
+  if (!admin) { state.acc = null; return; }
   const [u, t] = await Promise.all([api("/api/users"), api("/api/tokens")]);
   state.acc = { ...u, tokens: t.tokens };
 }
@@ -1787,7 +1812,7 @@ function incPill(i) {
   return ['<span class="pill bad">ALERT</span>', `sent ${esc(ago(i.sent_at))}`];
 }
 function targetName(t, chans) {
-  if (t === "phone") return "Phone"; if (t === "email") return "Email";
+  if (t === "phone") return "Phone"; if (t === "email") return "Email"; if (t === "push") return "NetWatch app";
   const c = chans.find(c => c.id === t); return c ? c.name : "(removed)";
 }
 function scopeText(r) {
@@ -1827,6 +1852,7 @@ function targetBoxes(box, selected) {
   const A = state.al, opts = [];
   if (A.builtin.phone) opts.push(["phone", "Phone (.env)"]);
   if (A.builtin.email) opts.push(["email", "Email (.env)"]);
+  opts.push(["push", "NetWatch app"]);
   A.channels.filter(c => c.enabled).forEach(c => opts.push([c.id, c.name]));
   $(box).innerHTML = opts.map(([v, l]) => `<label class="chk"><input type="checkbox" value="${esc(v)}" ${selected.includes(v) ? "checked" : ""}> ${esc(l)}</label>`).join("")
     || `<span class="sub">Add a channel below first, or set phone/email in .env.</span>`;
@@ -2009,6 +2035,76 @@ $("#detail").addEventListener("click", async e => {
 });
 $("#st-discover").onclick = async () => { try { await api("/api/discover", { method: "POST" }); toast("Looking for devices… results appear within a minute"); } catch (e) { toast(errText(e)); } };
 $("#st-save2").onclick = () => $("#st-save").click();
+
+// ---------- Installable app and push notifications ----------
+state.swReg = null; state.swErr = null; state.installEvt = null;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const swReady = ("serviceWorker" in navigator && window.isSecureContext)
+  ? navigator.serviceWorker.register("/sw.js").then(r => { state.swReg = r; return r; }).catch(e => { state.swErr = String(e && e.message || e); return null; })
+  : Promise.resolve(null);
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); state.installEvt = e; $("#btn-install").classList.remove("hidden"); });
+window.addEventListener("appinstalled", () => { $("#btn-install").classList.add("hidden"); toast("NetWatch installed"); });
+$("#btn-install").onclick = async () => {
+  if (!state.installEvt) return;
+  state.installEvt.prompt(); await state.installEvt.userChoice.catch(() => {}); state.installEvt = null; $("#btn-install").classList.add("hidden");
+};
+function b64uToBytes(s) {
+  const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4));
+  return Uint8Array.from(b, c => c.charCodeAt(0));
+}
+async function pushState() {
+  if (!window.isSecureContext) return { ok: false, why: "Notifications need HTTPS. Open NetWatch at its https:// address." };
+  if (isIOS && !isStandalone()) return { ok: false, why: "On iPhone and iPad: tap Share, then Add to Home Screen. Open NetWatch from the home screen and come back here to turn notifications on (iOS 16.4 or newer)." };
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window))
+    return { ok: false, why: "This browser can't show notifications from web apps." };
+  const reg = await swReady;
+  if (!reg) return { ok: false, why: "This browser doesn't fully trust NetWatch's certificate yet, so it can't run the app in the background. See \"HTTPS\" in the README: install NetWatch's certificate on this device, or use a real certificate." };
+  if (Notification.permission === "denied") return { ok: false, why: "Notifications are blocked for NetWatch in this browser's settings. Allow them there, then reload." };
+  const sub = await reg.pushManager.getSubscription().catch(() => null);
+  return { ok: true, sub };
+}
+async function renderPushStatus() {
+  const s = await pushState(), on = !!(s.ok && s.sub);
+  $("#push-status").innerHTML = !s.ok ? esc(s.why)
+    : on ? '<b style="color:var(--green)">On</b> for this device.' : "Off for this device.";
+  $("#push-on").classList.toggle("hidden", !s.ok || on);
+  $("#push-test").classList.toggle("hidden", !on);
+  $("#push-off").classList.toggle("hidden", !on);
+}
+function renderPushList() {
+  const list = state.pushDevices || [], admin = (state.me || {}).role === "admin";
+  $("#push-list-wrap").classList.toggle("hidden", !list.length);
+  $("#push-list-title").textContent = admin ? "All devices getting notifications" : "Your devices getting notifications";
+  $("#push-list").innerHTML = list.map(d => `<li><span>${esc(d.label || "Device")}${admin ? ` <span class="sub">· ${esc(d.username || "")}</span>` : ""}
+      <span class="sub">${d.last_error ? `· <span style="color:var(--amber)">${esc(d.last_error)}</span>` : d.last_ok ? "· last delivered " + esc(ago(d.last_ok)) : "· added " + esc(ago(d.created))}</span></span>
+      <span><button data-pushdel="${+d.id}">Remove</button></span></li>`).join("");
+}
+$("#acc-push").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  try {
+    if (b.id === "push-on") {
+      b.disabled = true;
+      if (await Notification.requestPermission() !== "granted") { toast("Notifications weren't allowed"); return; }
+      const reg = await swReady, { public_key } = await api("/api/push/key");
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(public_key) });
+      await api("/api/push/subscribe", { method: "POST", body: JSON.stringify(sub.toJSON()) });
+      toast("Notifications are on for this device");
+    } else if (b.id === "push-test") {
+      const r = await api("/api/push/test", { method: "POST" });
+      toast(r.sent ? `Test sent to ${r.sent} device(s)` : "Couldn't deliver the test: see the list below");
+    } else if (b.id === "push-off") {
+      const reg = await swReady, sub = reg && await reg.pushManager.getSubscription();
+      if (sub) { await api("/api/push/unsubscribe", { method: "POST", body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); }
+      toast("Notifications are off for this device");
+    } else if (b.dataset.pushdel) {
+      await api(`/api/push/devices/${b.dataset.pushdel}`, { method: "DELETE" }); toast("Removed");
+    }
+  } catch (err) { toast(errText(err)); }
+  finally { b.disabled = false; await loadAccess().catch(() => {}); renderAccess(); renderPushStatus(); }
+});
+document.querySelector('nav button[data-tab="acc"]').addEventListener("click", () => renderPushStatus());
 
 loadMe().then(refresh);
 setInterval(refresh, 10000);

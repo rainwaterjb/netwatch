@@ -177,6 +177,19 @@ CREATE TABLE IF NOT EXISTS identity_links (
     decided_by  TEXT,
     UNIQUE (mac, other)
 );
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    endpoint    TEXT NOT NULL UNIQUE,                 -- the browser's push-service address
+    p256dh      TEXT NOT NULL,                        -- the browser's public key (messages are encrypted to it)
+    auth        TEXT NOT NULL,
+    username    TEXT,
+    user_id     INTEGER,
+    label       TEXT,                                 -- e.g. "iPhone · Safari"
+    created     REAL,
+    last_ok     REAL,
+    last_error  TEXT,
+    fails       INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS outages (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     start   REAL NOT NULL,

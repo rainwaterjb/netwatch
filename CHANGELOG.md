@@ -4,6 +4,17 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.12.0 (2026-11-18): Installable app and push notifications
+- **Install NetWatch as an app** on iPhone/iPad (Add to Home Screen), Android, Chrome/Edge (Install app button) and Mac (Add to Dock), with its own icon.
+- **Native push notifications**, no ntfy or Pushover needed: turn them on per device under **Access → Notifications on this device**. They carry everything that goes to Phone (device checkboxes, internet and chatty alerts, the quiet-hours digest) and alert rules that send to the new **NetWatch app** destination. Escalations stay on screen; tapping opens NetWatch.
+- Anyone signed in, including viewers, can turn notifications on for their own devices; admins can see and remove everyone's.
+- The card explains exactly what's missing when notifications can't be turned on: the iPhone home-screen step, an untrusted certificate, or notifications blocked in the browser.
+- **Security:** messages are end-to-end encrypted for each device (RFC 8291; verified against the RFC's test vector) and signed with NetWatch's own VAPID key (RFC 8292), kept in the data folder with owner-only permissions and left out of backups. Only known push services over HTTPS are allowed (no SSRF). The service worker caches nothing and only opens NetWatch pages.
+- The Host allow-list (`ALLOWED_HOSTS`) now also covers the sign-in page and the app files; only the health check and certificate download are exempt.
+- README: getting a free, trusted Let's Encrypt certificate through Cloudflare DNS without exposing NetWatch to the internet.
+- The phone header no longer squeezes its buttons.
+- No new dependencies. **Rollback-safe:** one new table; older versions ignore it.
+
 ## v1.11.0 (2026-11-18): Device recognition and private Wi-Fi addresses
 - **Device recognition:** each device gets a type (phone, tablet, computer, TV, streaming player, speaker, printer, camera, smart home, console, network gear, server, watch), an icon, and often its model and OS. Learned from DHCP requests (name, vendor class, fingerprint), Bonjour/mDNS (AirPlay, Google Cast, printers, HomeKit…), UPnP/SSDP descriptions, the MAC manufacturer and the hostname. Admins can set the type by hand.
 - **Private Wi-Fi addresses:** devices using a randomized MAC get a badge. When one rejoins under a new address with the same name (and DHCP fingerprint) as a known device, the Overview asks "… looks like Alex's iPhone": **Same device** moves the name, tags, alert settings and service checks to the new address and hides the old record; **Not the same** is remembered. Generic names never match, and devices online at the same time are never linked. Link and unlink by hand in the details window.

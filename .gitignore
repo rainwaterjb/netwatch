@@ -13,3 +13,8 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+
+# TLS certificates and keys (e.g. from the Let's Encrypt guide) never go into git
+certs/
+*.pem
+*.key

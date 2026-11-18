@@ -63,6 +63,7 @@ class AlertManager:
         self.notifier = notifier
         self.wan_down = lambda: False           # replaced by the WAN monitor
         self.rules = None                       # alert rules engine (rules.py), if running
+        self.pusher = None                      # NetWatch app notifications (push.py)
         self._stop = threading.Event()
 
     def settings(self):
@@ -72,7 +73,7 @@ class AlertManager:
              urgent=False, now=None):
         """Returns 'sent', 'held', 'snoozed' or 'skipped'."""
         now = now or time.time()
-        if not ((phone and self.notifier.phone_enabled) or (email and self.notifier.email_enabled)):
+        if not ((phone and self.phone_ready) or (email and self.notifier.email_enabled)):
             return "skipped"
         if device and (device.get("snooze_until") or 0) > now:
             self.store.add_event("suppressed", device["mac"], device.get("ip"),
@@ -88,7 +89,21 @@ class AlertManager:
             self.store.add_pending(title, message, phone, email, reason, ts=now)
             return "held"
         self.notifier.notify(title, message, phone=phone, email=email, tags=tags)
+        if phone:
+            self.push(title, message, tag=device["mac"] if device else None)
         return "sent"
+
+    @property
+    def phone_ready(self):
+        """Phone alerts can go somewhere: ntfy/Pushover, or the NetWatch app."""
+        return self.notifier.phone_enabled or bool(self.pusher and self.pusher.count())
+
+    def push(self, title, message, tag=None, severity="alert"):
+        if self.pusher is not None:
+            try:
+                self.pusher.send(title, message, tag=tag, severity=severity)
+            except Exception:
+                log.exception("Push notification failed")
 
     def event(self, kind, **details):
         """Tell the alert rules something happened. Never raises."""
@@ -118,6 +133,8 @@ class AlertManager:
                     for i in chosen)
             self.notifier.notify(title, body, phone=channel == "phone", email=channel == "email",
                                  tags=["inbox_tray"])
+            if channel == "phone":
+                self.push(title, body, tag="digest", severity="digest")
         log.info("Sent digest of %d held alert(s)", len(items))
         return len(items)
 

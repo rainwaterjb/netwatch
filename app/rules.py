@@ -28,7 +28,7 @@ EVENTS = {   # what a rule can watch for -> (label, the event that ends it, what
     "chatty":         ("A device gets chatty (DNS)", "chatty_end", "device"),
 }
 ENDS = {end: start for start, (_l, end, _a) in EVENTS.items() if end}
-BUILTIN_TARGETS = ("phone", "email")
+BUILTIN_TARGETS = ("phone", "email", "push")
 GROUP_AT = 4            # this many alerts for one rule at once are sent as one summary
 MAX_ATTEMPTS = 30
 
@@ -351,7 +351,12 @@ class RuleEngine:
     def _deliver(self, targets, msg):
         """Send to each target; returns (number that worked, summary)."""
         ok, parts = 0, []
-        builtin = [t for t in targets if t in BUILTIN_TARGETS]
+        builtin = [t for t in targets if t in ("phone", "email")]
+        if "push" in targets and self.alerts.pusher is not None:
+            r = self.alerts.pusher.send(msg["title"], msg["message"], tag=f"inc-{msg['incident_id']}" if msg.get("incident_id") else None,
+                                        severity=msg["severity"], wait=True)
+            parts.append(f"app: {r.get('sent', 0)} sent" + (f", {r['failed']} failed" if r.get("failed") else ""))
+            ok += r.get("sent", 0) > 0
         if builtin:
             res = self.notifier.send_now(msg["title"], msg["message"] + (f"\n\nOpen NetWatch: {msg['url']}" if msg.get("url") else ""),
                                          phone="phone" in builtin, email="email" in builtin,

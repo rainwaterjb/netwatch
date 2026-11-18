@@ -6,3 +6,7 @@ data/
 __pycache__/
 *.py[cod]
 tests/
+
+certs/
+*.pem
+*.key

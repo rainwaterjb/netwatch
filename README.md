@@ -35,6 +35,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Router integration** *(optional)* | Connects to **OPNsense, pfSense, UniFi, OpenWrt or Linksys**: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses your router's device names. Optionally add and remove DHCP reservations from a **Reservations** tab. |
 | **Alert rules** | "If any #iot device is offline for 10 minutes, post to Discord; if nobody acknowledges it in 30 minutes, also send to Telegram." Rules for devices, new devices, service checks, internet outages and chatty devices, with recovery messages, escalation and acknowledgement. |
 | **More alert channels** | Discord, Slack, Telegram, Gotify, ntfy, webhooks (including Home Assistant) and MQTT, alongside phone and email. |
+| **Installable app** | Add NetWatch to your phone's home screen or your computer's dock, and get alerts as **native push notifications**, end-to-end encrypted, without ntfy or Pushover. |
 | **Phone notifications** | Through [ntfy](https://ntfy.sh) (free, open source, can be self-hosted) and/or [Pushover](https://pushover.net). |
 | **Email notifications** | Through any SMTP server (your mail provider, Gmail with an app password, a self-hosted relay, etc.). |
 | **Works on mobile** | The dashboard adapts to phones and tablets: tables become cards, with touch-friendly controls. |
@@ -149,6 +150,61 @@ TLS_KEY_FILE=/certs/privkey.pem
 ```
 
 Mount the folder in `docker-compose.yml` (`- ./certs:/certs:ro`). The key must be readable by the container user (UID 10001). With a trusted certificate, NetWatch also sends an HSTS header so browsers always use HTTPS.
+
+### A free, trusted certificate with Let's Encrypt and Cloudflare
+
+If you own a domain on Cloudflare, you can give NetWatch a real certificate for a name like `netwatch.example.com` **without exposing anything to the internet**. Let's Encrypt checks you own the domain through a DNS record instead of connecting to NetWatch. Every device then trusts NetWatch with no warnings and nothing to install, which is also what the app and push notifications need.
+
+1. **Name:** in your local DNS (e.g. Pi-hole → *Local DNS → DNS Records*) point `netwatch.example.com` at NetWatch's LAN IP. Nothing is added to public DNS.
+2. **Cloudflare API token:** *My Profile → API Tokens → Create Token → Edit zone DNS*, limited to that one zone.
+3. **Get the certificate** on the Docker host:
+   ```bash
+   sudo apt install certbot python3-certbot-dns-cloudflare
+   sudo install -m 600 /dev/null /root/cloudflare.ini
+   echo "dns_cloudflare_api_token = <token>" | sudo tee /root/cloudflare.ini
+   sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/cloudflare.ini -d netwatch.example.com
+   ```
+4. **Hand it to NetWatch** and reload it after each renewal (certbot renews automatically):
+   ```bash
+   sudo tee /etc/letsencrypt/renewal-hooks/deploy/netwatch.sh >/dev/null <<'HOOK'
+   #!/bin/sh
+   install -d -m 750 -o 10001 /opt/netwatch/certs
+   install -m 640 -o 10001 /etc/letsencrypt/live/netwatch.example.com/fullchain.pem /opt/netwatch/certs/
+   install -m 600 -o 10001 /etc/letsencrypt/live/netwatch.example.com/privkey.pem /opt/netwatch/certs/
+   docker restart netwatch
+   HOOK
+   sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/netwatch.sh && sudo /etc/letsencrypt/renewal-hooks/deploy/netwatch.sh
+   ```
+5. In `.env`: `TLS=custom`, `TLS_CERT_FILE=/certs/fullchain.pem`, `TLS_KEY_FILE=/certs/privkey.pem`, add `netwatch.example.com` to `ALLOWED_HOSTS`, and set `PUBLIC_URL=https://netwatch.example.com:8443`. Mount `./certs:/certs:ro` in `docker-compose.yml` and run `docker compose up -d`.
+
+Open `https://netwatch.example.com:8443`. If you use single sign-on, update the redirect URI at your provider to the new name too.
+
+---
+
+## The NetWatch app and push notifications
+
+NetWatch can be installed as an app and send **native notifications** to phones, tablets and computers, with no ntfy or Pushover account needed.
+
+**1. Make sure the device trusts NetWatch's certificate.** Browsers only run apps and notifications from a site they fully trust. Use the [Let's Encrypt route](#a-free-trusted-certificate-with-lets-encrypt-and-cloudflare), or install NetWatch's own certificate on the device ([see above](#removing-the-browser-warning-self-signed)). On iPhone, also turn it on under *Certificate Trust Settings*.
+
+**2. Install the app.**
+- **iPhone / iPad** (iOS 16.4+): open NetWatch in Safari → *Share* → **Add to Home Screen**, then open it from the home screen. Notifications on iOS only work from the home-screen app.
+- **Android / Chrome / Edge:** use **Install app** in the NetWatch header, or the browser's *Install* menu item.
+- **Mac (Safari 17+):** *File → Add to Dock*.
+
+**3. Turn on notifications:** in the app, go to **Access → Notifications on this device → Turn on notifications**, then **Send a test**. If something is missing (the home-screen step, the certificate, or notifications blocked in the browser), the card says exactly what.
+
+What arrives:
+- Everything that goes to **Phone**: the device checkboxes, internet and chatty-device alerts, and the morning digest after quiet hours. This works even if ntfy/Pushover aren't set up.
+- Alert rules that send to **NetWatch app** (choose it like any channel in the Alerts tab). Escalations stay on screen until you dismiss them, and tapping a notification opens NetWatch.
+- Every person who turns notifications on gets them, including read-only viewers. Each person can see and remove their own devices; admins see everyone's.
+
+How it's protected:
+- Messages are **end-to-end encrypted** for each device (Web Push, RFC 8291), so Apple, Google, Mozilla or Microsoft carry them but can't read them. NetWatch signs them with its own key (VAPID, RFC 8292), created on first start in the data folder, readable only by NetWatch and left out of backups.
+- NetWatch only sends to known push services over HTTPS, so a signed-in user can't use notifications to make NetWatch contact other hosts. Devices whose app was removed are forgotten automatically.
+- The app files (manifest, service worker, icons) are public because browsers fetch them before you sign in; they contain no data. The service worker caches nothing and only ever opens NetWatch pages.
+
+NetWatch needs outbound HTTPS to the push services. Set `PUSH_CONTACT` (`mailto:` or `https:`) to give push services a contact address.
 
 ---
 
@@ -538,6 +594,8 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames/IPs allowed to reach the dashboard |
 | `DISCOVERY` | `true` | Recognise devices from DHCP, Bonjour/mDNS and UPnP |
 | `DISCOVERY_INTERVAL` | `900` | Seconds between Bonjour/UPnP passes (min 300) |
+| `PUSH_CONTACT` | `mailto:netwatch@example.org` | Contact address sent to push services (`mailto:` or `https:`) |
+| `PUSH_ALLOWED_HOSTS` | *(empty)* | Extra push-service hosts to allow (only needed for unusual browsers) |
 | `PUBLIC_URL` | *(empty)* | NetWatch's address, added as a link to rule alerts |
 | `OIDC_ISSUER` | *(empty)* | Single sign-on provider's issuer URL. Empty turns SSO off. |
 | `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | *(empty)* | Client credentials from the provider |
@@ -677,6 +735,11 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `POST` | `/api/auth/password` | Change your own password: `current`, `new` |
 | `GET` / `POST` / `PATCH` / `DELETE` | `/api/users[/{id}]` | Manage accounts (admins, signed in; not with a token) |
 | `GET` / `POST` / `DELETE` | `/api/tokens[/{id}]` | Manage API tokens (admins, signed in; not with a token) |
+| `GET` | `/api/push/key` | NetWatch's public push key |
+| `POST` | `/api/push/subscribe`, `/api/push/unsubscribe` | Turn notifications on/off for a browser |
+| `POST` | `/api/push/test` | Send a test to your own devices |
+| `GET` / `DELETE` | `/api/push/devices[/{id}]` | Your devices getting notifications (`?everyone=true` for admins) |
+| `GET` | `/manifest.webmanifest`, `/sw.js`, `/icons/*` | App manifest, service worker and icons (public, no data) |
 | `GET` | `/api/devices/{mac}/recognition` | Type, model, evidence, linked addresses and possible matches |
 | `GET` | `/api/links` | "Same device?" suggestions (admins) |
 | `POST` | `/api/links/{id}/confirm`, `/api/links/{id}/reject` | Accept or turn down a suggestion (admins) |
@@ -719,12 +782,15 @@ netwatch/
 │   ├── pihole.py        # Optional Pi-hole v6 integration
 │   ├── history.py       # Device presence timeline
 │   ├── recognize.py     # Device recognition (DHCP, mDNS, SSDP) and private-address linking
+│   ├── push.py          # Web Push: encryption (RFC 8291), VAPID (RFC 8292), subscriptions
 │   ├── timeline.py      # Overview timeline (outages, checks, presence, DNS)
 │   ├── wol.py           # Wake-on-LAN
 │   ├── db.py            # SQLite storage
 │   ├── config.py        # Environment-variable configuration
 │   ├── static/index.html  # Dashboard (single page, no external assets)
-│   └── static/login.html  # Sign-in page
+│   ├── static/login.html  # Sign-in page
+│   ├── static/sw.js     # Service worker: shows notifications (caches nothing)
+│   └── static/manifest.webmanifest, static/icons/  # Installable app
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt     # Fully pinned, audited dependencies

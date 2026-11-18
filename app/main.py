@@ -31,6 +31,7 @@ from .services import KINDS as CHECK_KINDS, ServiceChecker
 from .wan import WanMonitor
 from .rules import EVENTS as RULE_EVENTS, RuleEngine, RuleError
 from .recognize import TYPES as DEVICE_TYPES, Recognizer, is_private_mac
+from .push import PushError, Pusher
 from . import alert_channels
 from .notifier import Notifier
 from .routers import RouterError, create_router
@@ -60,7 +61,9 @@ rules = RuleEngine(store, alerts, notifier, router=router, cfg=cfg)
 alerts.rules = rules
 recognizer = Recognizer(cfg, store, monitor, alerts, router=router)
 monitor.recognizer = recognizer
-BACKGROUND = (monitor, router, alerts, checker, wan, pihole, rules, recognizer)
+pusher = Pusher(cfg, store)
+alerts.pusher = pusher
+BACKGROUND = (monitor, router, alerts, checker, wan, pihole, rules, recognizer, pusher)
 STATIC = FsPath(__file__).parent / "static"
 
 
@@ -330,7 +333,8 @@ def status():
         "rechecks": {"checked": monitor.rechecked, "still_here": monitor.recheck_saved},
         "online": sum(1 for d in devices if d["online"]),
         "known": len(devices),
-        "phone_enabled": notifier.phone_enabled,
+        "phone_enabled": alerts.phone_ready,
+        "push_devices": pusher.count(),
         "email_enabled": notifier.email_enabled,
         "router": _router_status(),
         "tls": _tls_status(),
@@ -828,6 +832,71 @@ def dns_domain(name: str = Query(..., max_length=253)):
     return {"domain": name, **result}
 
 
+# ---------- Installable app and push notifications ----------
+@app.get("/manifest.webmanifest")
+def manifest():
+    return FileResponse(STATIC / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker():
+    return FileResponse(STATIC / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/icons/{name}")
+def icon(name: str = Path(pattern=r"^[a-z0-9-]{1,40}\.png$")):
+    path = STATIC / "icons" / name
+    if not path.is_file():
+        raise HTTPException(404, "No such icon")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/push/key")
+def push_key():
+    return {"public_key": pusher.public_key()}
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(request: Request, body: dict = Body(...)):
+    try:
+        sid = pusher.subscribe(_who(request), body, request.headers.get("user-agent"))
+    except PushError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "id": sid}
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(body: dict = Body(...)):
+    pusher.unsubscribe(str(body.get("endpoint") or ""))
+    return {"ok": True}
+
+
+@app.post("/api/push/test")
+def push_test(request: Request):
+    who = (_who(request) or {}).get("username") or "admin"
+    r = pusher.send("NetWatch test", "Notifications work on this device.", tag="test", username=who, wait=True)
+    if not r.get("sent") and not r.get("failed"):
+        raise HTTPException(400, "No devices are set up for notifications yet")
+    return r
+
+
+@app.get("/api/push/devices")
+def push_devices(request: Request, everyone: bool = Query(False)):
+    who = _who(request) or {}
+    if everyone and who.get("role") != "admin":
+        raise HTTPException(403, "Only admins can see everyone's devices")
+    return {"devices": pusher.subscriptions(None if everyone else (who.get("username") or "admin"))}
+
+
+@app.delete("/api/push/devices/{sub_id}")
+def push_remove(request: Request, sub_id: int = Path(ge=1)):
+    who = _who(request) or {}
+    n = pusher.remove(sub_id, None if who.get("role") == "admin" else (who.get("username") or ""))
+    if not n:
+        raise HTTPException(404, "Unknown device")
+    return {"ok": True}
+
+
 # ---------- Recognition and private-address linking ----------
 @app.get("/api/devices/{mac}/recognition")
 def device_recognition(mac: str = Path(pattern=MAC_PATTERN)):
@@ -929,7 +998,7 @@ def test_channel(channel_id: int = Path(ge=1)):
 @app.get("/api/alert-rules")
 def list_rules():
     return {"rules": rules.rules(), "events": {k: {"label": v[0], "applies": v[2]} for k, v in RULE_EVENTS.items()},
-            "builtin": {"phone": notifier.phone_enabled, "email": notifier.email_enabled}}
+            "builtin": {"phone": notifier.phone_enabled, "email": notifier.email_enabled, "push": True}}
 
 
 @app.post("/api/alert-rules")
@@ -1038,8 +1107,12 @@ class TestNotification(BaseModel):
 
 @app.post("/api/test-notification")
 def test_notification(body: TestNotification):
-    return notifier.send_now(
+    out = notifier.send_now(
         "Test notification",
         "If you can read this, NetWatch alerts are working.",
-        phone=body.phone, email=body.email, tags=["bell"],
+        phone=body.phone and notifier.phone_enabled, email=body.email, tags=["bell"],
     )
+    if body.phone and pusher.count():
+        r = pusher.send("Test notification", "If you can read this, NetWatch alerts are working.", tag="test", wait=True)
+        out["app"] = f"{r['sent']} device(s)" + (f", {r['failed']} failed" if r["failed"] else "")
+    return out

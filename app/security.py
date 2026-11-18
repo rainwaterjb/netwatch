@@ -14,14 +14,18 @@ log = logging.getLogger("netwatch.security")
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 # Health check, public certificate, and the sign-in page itself.
 PUBLIC_PATHS = {"/healthz", "/netwatch.crt", "/login", "/api/auth/login", "/api/auth/options",
-                "/api/auth/oidc/start", "/api/auth/oidc/callback"}
+                "/api/auth/oidc/start", "/api/auth/oidc/callback",
+                "/manifest.webmanifest", "/sw.js"}       # the app's manifest and service worker (no data in them)
+PUBLIC_PREFIXES = ("/icons/",)
+# Only the health check and certificate download skip the Host allow-list.
+HOST_EXEMPT = {"/healthz", "/netwatch.crt"}
 # Read-only accounts may still sign out and change their own password.
 VIEWER_WRITE_PATHS = {"/api/auth/logout", "/api/auth/password"}
 # Only admins may see these, even read-only.
 ADMIN_ONLY_PREFIXES = ("/api/users", "/api/tokens", "/api/export/backup", "/api/alert-channels", "/api/alert-rules",
                        "/api/links")
 # ...and acknowledge alerts.
-VIEWER_WRITE_PREFIXES = ("/api/incidents/",)
+VIEWER_WRITE_PREFIXES = ("/api/incidents/", "/api/push/")
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -58,7 +62,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # 1. Host allow-list (protects against DNS-rebinding attacks).
-        if self.allowed_hosts and path not in PUBLIC_PATHS:
+        if self.allowed_hosts and path not in HOST_EXEMPT:
             if _host_only(request.headers.get("host")) not in self.allowed_hosts:
                 return PlainTextResponse("Invalid Host header", status_code=400)
 
@@ -74,7 +78,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return PlainTextResponse("Cross-origin request blocked", status_code=403)
 
         # 3. Who is this? (API token, session cookie or Basic login.)
-        if path in PUBLIC_PATHS:
+        if path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES):
             who = None
         else:
             ip = request.client.host if request.client else "?"
