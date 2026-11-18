@@ -121,6 +121,12 @@ CREATE TABLE IF NOT EXISTS outages (
 );
 """
 
+# Columns added to the users table (v1.8.0) by later versions.
+USER_MIGRATIONS = [
+    ("sso_issuer", "TEXT"),     # v1.9.0: set for single sign-on accounts
+    ("sso_subject", "TEXT"),
+]
+
 # Columns added after v1.4.0: (name, definition). Existing devices count as
 # already known (acknowledged=1); new ones are inserted with acknowledged=0.
 DEVICE_MIGRATIONS = [
@@ -157,6 +163,12 @@ class Store:
             for name, definition in DEVICE_MIGRATIONS:
                 if name not in have:
                     self.conn.execute(f"ALTER TABLE devices ADD COLUMN {name} {definition}")
+            have = {r[1] for r in self.conn.execute("PRAGMA table_info(users)")}
+            for name, definition in USER_MIGRATIONS:
+                if name not in have:
+                    self.conn.execute(f"ALTER TABLE users ADD COLUMN {name} {definition}")
+            self.conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_sso ON users(sso_issuer, sso_subject) "
+                              "WHERE sso_subject IS NOT NULL")
             self.conn.commit()
 
     def _query(self, sql, args=()):

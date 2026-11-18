@@ -13,7 +13,8 @@ log = logging.getLogger("netwatch.security")
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 # Health check, public certificate, and the sign-in page itself.
-PUBLIC_PATHS = {"/healthz", "/netwatch.crt", "/login", "/api/auth/login"}
+PUBLIC_PATHS = {"/healthz", "/netwatch.crt", "/login", "/api/auth/login", "/api/auth/options",
+                "/api/auth/oidc/start", "/api/auth/oidc/callback"}
 # Read-only accounts may still sign out and change their own password.
 VIEWER_WRITE_PATHS = {"/api/auth/logout", "/api/auth/password"}
 # Only admins may see these, even read-only.

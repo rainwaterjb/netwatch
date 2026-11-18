@@ -264,7 +264,9 @@ class AuthManager:
 
     @staticmethod
     def public_user(u):
-        return {k: u[k] for k in ("id", "username", "role", "created", "last_login", "disabled")}
+        out = {k: u[k] for k in ("id", "username", "role", "created", "last_login", "disabled")}
+        out["sso"] = bool(u.get("sso_subject"))
+        return out
 
     def list_users(self):
         return [self.public_user(u) for u in self.store._query("SELECT * FROM users ORDER BY username COLLATE NOCASE")]
@@ -307,6 +309,8 @@ class AuthManager:
         if not user:
             raise AuthError("Unknown account", 404)
         changes, end_sessions = [], False
+        if user.get("sso_subject") and (role is not None or password is not None):
+            raise AuthError("This account signs in with SSO: its role comes from the provider's groups and it has no password", 400)
         if role is not None:
             if role not in ROLES:
                 raise AuthError("Role must be admin or viewer")
@@ -327,6 +331,8 @@ class AuthManager:
 
     def change_own_password(self, user_id, current, new, keep_session_hash):
         user = self.get_user(user_id)
+        if user and user.get("sso_subject"):
+            raise AuthError("This account signs in with SSO; change your password at the provider", 400)
         if not user or not verify_password(current or "", user["password_hash"]):
             raise AuthError("Current password is wrong", 403)
         self._validate_password(new, user["username"])

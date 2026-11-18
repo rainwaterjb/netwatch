@@ -13,7 +13,7 @@ import sqlite3
 import tempfile
 
 from fastapi import FastAPI, HTTPException, Path, Query, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
@@ -21,6 +21,7 @@ from . import history as dev_history
 from . import timeline as dash_timeline
 from . import wol
 from .auth import ROLES, AuthError, AuthManager
+from .sso import FLOW_COOKIE, OIDC, SSOError
 from .alerts import CHANNEL_CHOICES, DEFAULT_SETTINGS, AlertManager, in_quiet_hours, validate_time
 from .config import Config
 from .db import Store
@@ -37,6 +38,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"),
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 cfg = Config.from_env()
+log = logging.getLogger("netwatch")
 store = Store(cfg.db_path)
 notifier = Notifier(cfg)
 router = create_router(cfg)
@@ -48,6 +50,9 @@ checker = ServiceChecker(store, alerts, router=router)
 wan = WanMonitor(cfg, store, alerts, monitor=monitor)
 pihole = PiholeIntegration(cfg, store, alerts, router=router)
 auth = AuthManager(store, cfg)
+oidc = OIDC(cfg, store, auth)
+for _p in oidc.problems():
+    log.warning("Single sign-on: %s", _p)
 BACKGROUND = (monitor, router, alerts, checker, wan, pihole)
 STATIC = FsPath(__file__).parent / "static"
 
@@ -140,10 +145,68 @@ def login(body: LoginIn, request: Request):
     ip = request.client.host if request.client else "?"
     who = _auth_call(auth.check_password, body.username, body.password, ip)
     raw = auth.create_session(who, ip, request.headers.get("user-agent"))
-    https = request.url.scheme == "https"
     resp = JSONResponse({"username": who["username"], "role": who["role"]})
+    _set_session_cookie(resp, request, raw)
+    return resp
+
+
+def _set_session_cookie(resp, request, raw):
+    https = request.url.scheme == "https"
     resp.set_cookie(auth.cookie_name(https), raw, max_age=30 * 86400, path="/",
                     secure=https, httponly=True, samesite="strict")
+
+
+@app.get("/api/auth/options")
+def auth_options():
+    """Public: what the sign-in page should offer."""
+    return {"sso": oidc.enabled, "sso_label": cfg.oidc_button_label if oidc.enabled else None}
+
+
+@app.get("/api/auth/oidc/start")
+def oidc_start(request: Request):
+    if not oidc.enabled:
+        return RedirectResponse("/login?sso=off", status_code=303)
+    ip = request.client.host if request.client else "?"
+    base = f"{request.url.scheme}://{request.url.netloc}"
+    try:
+        url, binding = oidc.start(base, ip)
+    except SSOError as e:
+        log.warning("SSO start failed: %s", e)
+        return RedirectResponse(f"/login?sso={e.code}", status_code=303)
+    resp = RedirectResponse(url, status_code=303)
+    # Lax (not Strict): it must come back with the provider's redirect to the callback.
+    resp.set_cookie(FLOW_COOKIE, binding, max_age=600, path="/api/auth/oidc",
+                    secure=request.url.scheme == "https", httponly=True, samesite="lax")
+    return resp
+
+
+_SSO_DONE = """<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/">
+<title>Signing in…</title></head><body style="background:#0b0f14;color:#e6edf3;font-family:system-ui">
+<p>Signing in… <a href="/" style="color:#58a6ff">continue</a></p></body></html>"""
+
+
+@app.get("/api/auth/oidc/callback")
+def oidc_callback(request: Request, state: str = Query("", max_length=200), code: str = Query("", max_length=2048),
+                  error: str = Query("", max_length=100)):
+    ip = request.client.host if request.client else "?"
+    if not oidc.enabled:
+        return RedirectResponse("/login?sso=off", status_code=303)
+    try:
+        if error:
+            raise SSOError("denied", f"provider returned {error[:40]}")
+        who = oidc.finish(state, code, request.cookies.get(FLOW_COOKIE), ip)
+    except SSOError as e:
+        log.warning("SSO sign-in failed from %s: %s", ip, e)
+        resp = RedirectResponse(f"/login?sso={e.code}", status_code=303)
+        resp.delete_cookie(FLOW_COOKIE, path="/api/auth/oidc")
+        return resp
+    raw = auth.create_session(who, ip, request.headers.get("user-agent"))
+    # A page that moves on to "/" itself: after a redirect chain that started at the
+    # provider, browsers won't send a SameSite=Strict cookie until the next navigation.
+    resp = HTMLResponse(_SSO_DONE, headers={"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+                                             "Cache-Control": "no-store"})
+    _set_session_cookie(resp, request, raw)
+    resp.delete_cookie(FLOW_COOKIE, path="/api/auth/oidc")
     return resp
 
 
@@ -163,7 +226,9 @@ def me(request: Request):
     who = _who(request) or {}
     return {"username": who.get("username"), "role": who.get("role"), "kind": who.get("kind"),
             "is_builtin": who.get("user_id") == 0, "can_sign_out": who.get("kind") == "session",
-            "can_change_password": who.get("kind") == "session" and bool(who.get("user_id")),
+            "can_change_password": who.get("kind") == "session" and bool(who.get("user_id"))
+                                   and not (auth.get_user(who["user_id"]) or {}).get("sso_subject"),
+            "sso": bool(who.get("user_id")) and bool((auth.get_user(who["user_id"]) or {}).get("sso_subject")),
             "login_required": auth.login_required, "accounts_enabled": auth.accounts_enabled}
 
 
@@ -196,7 +261,10 @@ class UserUpdate(BaseModel):
 @app.get("/api/users")
 def list_users():
     return {"users": auth.list_users(), "builtin": cfg.web_username if cfg.web_password else None,
-            "accounts_enabled": auth.accounts_enabled, "roles": ROLES}
+            "accounts_enabled": auth.accounts_enabled, "roles": ROLES,
+            "sso": {"enabled": oidc.enabled, "configured": bool(cfg.oidc_issuer), "problems": oidc.problems(),
+                    "issuer": cfg.oidc_issuer or None, "admin_groups": cfg.oidc_admin_groups,
+                    "viewer_groups": cfg.oidc_viewer_groups, "default_role": cfg.oidc_default_role}}
 
 
 @app.post("/api/users")

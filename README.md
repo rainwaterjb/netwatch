@@ -14,6 +14,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Overview dashboard** | One screen with the state of everything: internet, devices, services, free addresses and DNS; a **Needs attention** list; a live activity feed that can hide brief blips; the address map; and service checks with trend lines. |
 | **Timeline** | Internet outages, failed service checks, when each device was online, and DNS volume, all lined up on one time axis (6 hours, 24 hours or 7 days), so you can see what happened at the same moment. Filter by tag or show only devices that dropped. |
 | **Accounts and API tokens** | A sign-in page, separate accounts for each person (admin or read-only viewer), and API tokens for tools like Homepage. The built-in admin from `.env` always works. |
+| **Single sign-on** *(optional)* | Sign in with Authentik, Keycloak, Authelia or any OpenID Connect provider. Admin or viewer role comes from the provider's groups. |
 | **Device inventory** | Every device that answers on the LAN, with IP address, MAC address, manufacturer (looked up from the MAC), and hostname (via reverse DNS). Give devices friendly names from the dashboard. |
 | **IP address map** | A grid of the whole subnet showing which addresses are in use, which were last used by a device that's currently offline, and which are free. One click copies the list of free addresses. |
 | **Connection time** | How long each device has been connected since it last joined, plus first-seen and last-seen times. |
@@ -177,6 +178,47 @@ How it's protected:
 - Sessions end after a week without use, and after 30 days at most.
 
 **Rolling back is safe.** Accounts need `WEB_PASSWORD` to be set, and older versions (before v1.8.0) simply ignore the accounts and keep asking for `WEB_PASSWORD`. Only the extra accounts and tokens stop working until you upgrade again, so switch Homepage back to Basic login first if you roll back.
+
+## Single sign-on (optional)
+
+NetWatch can sign people in through **Authentik**, Keycloak, Authelia, Google or any other OpenID Connect provider. The sign-in page then shows a **Sign in with …** button above the password form. Password sign-in keeps working, so the built-in admin is always there if the provider is down.
+
+### Setting up Authentik
+
+1. In Authentik, go to **Applications → Applications → Create with provider** (or create an **OAuth2/OpenID Provider** and then an **Application**).
+2. Provider type **OAuth2/OpenID Connect**, client type **Confidential**.
+3. **Redirect URI** (strict): `https://<netwatch-address>:8443/api/auth/oidc/callback`, using the exact address you open NetWatch with.
+4. **Signing key**: pick a certificate, for example *authentik Self-signed Certificate*. NetWatch only accepts tokens signed with a public/private key pair, not ones signed with the client secret.
+5. Scopes: keep the defaults (`openid`, `email`, `profile`). Authentik's `profile` scope includes the user's groups.
+6. Create groups such as `netwatch-admins` and `netwatch-viewers` and add people to them.
+7. Copy the **Client ID**, **Client Secret** and the **OpenID Configuration Issuer** (looks like `https://auth.example.com/application/o/netwatch/`) into `.env`:
+
+```
+OIDC_ISSUER=https://auth.example.com/application/o/netwatch/
+OIDC_CLIENT_ID=...
+OIDC_CLIENT_SECRET=...
+OIDC_ADMIN_GROUPS=netwatch-admins
+OIDC_VIEWER_GROUPS=netwatch-viewers
+OIDC_BUTTON_LABEL=Sign in with Authentik
+```
+
+Restart (`docker compose up -d`). The **Access** tab shows the SSO settings NetWatch picked up, and anything that stops SSO from working.
+
+### How roles and accounts work
+
+- Members of `OIDC_ADMIN_GROUPS` sign in as **admin**, members of `OIDC_VIEWER_GROUPS` as **viewer**. Anyone else is refused, unless you set `OIDC_DEFAULT_ROLE=viewer`.
+- Roles are refreshed from the groups **every time** someone signs in. Someone removed from all allowed groups is signed out, and their API tokens are revoked, the next time they try.
+- The first sign-in creates a NetWatch account (shown with an **SSO** tag in the Access tab). It has no password, so it can only sign in through the provider. If the provider's username is already used by a local account, the SSO account gets `-sso` added instead of taking it over.
+- Admins can still **disable** or **delete** an SSO account in NetWatch, which blocks it even if the provider allows it.
+- **Sign out** signs you out of NetWatch only, not out of Authentik.
+
+### How it's protected
+
+The sign-in uses the authorization-code flow with **PKCE**. A one-time `state` value is tied to the browser that started the sign-in, so nobody can trick you into signing in as them, and a `nonce` is checked as well. NetWatch fetches the ID token server-to-server and checks its signature against the provider's published keys, plus its issuer, audience, expiry and nonce. Tokens from the provider are never sent to the browser.
+
+If your provider uses a certificate from your own CA, point `OIDC_CA_FILE` at that CA certificate (mounted into the container). `OIDC_VERIFY_TLS=false` turns the check off entirely; avoid it if you can.
+
+**Rolling back is safe.** SSO needs `WEB_PASSWORD`, and it only adds two columns to the accounts table. Older versions ignore SSO accounts: they can't sign in there, and everyone else can.
 
 ## Setting up notifications
 
@@ -433,6 +475,16 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `WEB_USERNAME` | `admin` | Dashboard login username |
 | `WEB_PASSWORD` | *(empty)* | Built-in admin password. **Strongly recommended.** Needed for sign-in, accounts, API tokens and DNS details. Empty disables login. |
 | `ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames/IPs allowed to reach the dashboard |
+| `OIDC_ISSUER` | *(empty)* | Single sign-on provider's issuer URL. Empty turns SSO off. |
+| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | *(empty)* | Client credentials from the provider |
+| `OIDC_ADMIN_GROUPS` / `OIDC_VIEWER_GROUPS` | *(empty)* | Comma-separated provider groups that sign in as admin / viewer |
+| `OIDC_DEFAULT_ROLE` | `none` | Role for people in neither list: `none` (refused) or `viewer` |
+| `OIDC_REDIRECT_URL` | *(auto)* | Callback URL registered at the provider, if NetWatch can't work it out (e.g. behind a reverse proxy) |
+| `OIDC_SCOPES` | `openid profile email` | Scopes to request |
+| `OIDC_GROUPS_CLAIM` | `groups` | ID-token claim that lists the user's groups |
+| `OIDC_BUTTON_LABEL` | `Sign in with SSO` | Text of the sign-in button |
+| `OIDC_CA_FILE` | *(empty)* | Extra CA certificate to trust for the provider |
+| `OIDC_VERIFY_TLS` | `true` | Check the provider's HTTPS certificate |
 | `NTFY_URL` / `NTFY_TOKEN` | *(empty)* | ntfy topic URL and optional access token |
 | `PUSHOVER_USER_KEY` / `PUSHOVER_APP_TOKEN` | *(empty)* | Pushover credentials |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURITY` | – / `587` / `starttls` | Mail server; security is `starttls`, `ssl`, or `none` |
@@ -556,6 +608,8 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `POST` | `/api/auth/login` | Sign in: `username`, `password`; sets a session cookie |
 | `POST` | `/api/auth/logout` | Sign out |
 | `GET` | `/api/auth/me` | Who you're signed in as, and your role |
+| `GET` | `/api/auth/options` | Whether single sign-on is available (public) |
+| `GET` | `/api/auth/oidc/start`, `/api/auth/oidc/callback` | Single sign-on flow (public; used by the browser) |
 | `POST` | `/api/auth/password` | Change your own password: `current`, `new` |
 | `GET` / `POST` / `PATCH` / `DELETE` | `/api/users[/{id}]` | Manage accounts (admins, signed in; not with a token) |
 | `GET` / `POST` / `DELETE` | `/api/tokens[/{id}]` | Manage API tokens (admins, signed in; not with a token) |
@@ -577,6 +631,7 @@ netwatch/
 │   ├── notifier.py      # ntfy, Pushover and SMTP delivery
 │   ├── security.py      # Who's asking, roles, CSRF/Host checks, security headers
 │   ├── auth.py          # Accounts, sessions, API tokens, password hashing, sign-in limits
+│   ├── sso.py           # Single sign-on (OpenID Connect)
 │   ├── serve.py         # Entry point: HTTPS server + HTTP redirect
 │   ├── tls.py           # Self-signed certificate creation/renewal
 │   ├── healthcheck.py   # Docker health check

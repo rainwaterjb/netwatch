@@ -621,6 +621,10 @@
         <button class="primary" id="nu-save">Add account</button>
       </div>
     </div>
+    <div class="card admin-only" id="acc-sso-card">
+      <h3>Single sign-on</h3>
+      <div id="acc-sso" class="sub"></div>
+    </div>
     <div class="card admin-only" id="acc-tok-card">
       <h3>API tokens</h3>
       <p class="info">For tools such as Homepage or scripts. Send it as <code>Authorization: Bearer &lt;token&gt;</code>. A <b>viewer</b> token can only read. Tokens can't manage accounts or other tokens.</p>
@@ -1580,6 +1584,7 @@ function renderAccess() {
   $("#acc-me").innerHTML = me.username
     ? `Signed in as <b>${esc(me.username)}</b> <span class="role ${me.role === "admin" ? "admin" : ""}">${esc(me.role)}</span>` +
       (me.is_builtin ? ` · the built-in admin from <code>.env</code>. Change its password with <code>WEB_PASSWORD</code>.` : "") +
+      (me.sso ? " · signs in with single sign-on; manage your password at your provider." : "") +
       (me.kind === "token" ? " · using an API token" : "") + (me.kind === "builtin" ? " · signed in with the browser's login box" : "")
     : "Not signed in.";
   $("#acc-pw").classList.toggle("hidden", !me.can_change_password);
@@ -1590,13 +1595,21 @@ function renderAccess() {
   if (noAcc) $("#acc-users-info").innerHTML = "Accounts need <code>WEB_PASSWORD</code> set in <code>.env</code> first. It stays the fallback admin sign-in, so rolling back to an older NetWatch version never leaves the dashboard open.";
   const builtin = A.builtin ? `<tr><td><b>${esc(A.builtin)}</b> <span class="sub">built-in, from .env</span></td><td><span class="role admin">admin</span></td><td class="hide-sm sub">–</td><td></td></tr>` : "";
   $("#acc-users").innerHTML = builtin + A.users.map(u => `<tr>
-      <td><b>${esc(u.username)}</b>${u.disabled ? ' <span class="chip snz">disabled</span>' : ""}${u.username === me.username ? ' <span class="sub">(you)</span>' : ""}</td>
-      <td><select class="sel" data-urole="${+u.id}" aria-label="Role for ${esc(u.username)}">${A.roles.map(r => `<option value="${esc(r)}" ${r === u.role ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></td>
+      <td><b>${esc(u.username)}</b>${u.sso ? ' <span class="chip new" title="Signs in with single sign-on; role comes from the provider\'s groups">SSO</span>' : ""}${u.disabled ? ' <span class="chip snz">disabled</span>' : ""}${u.username === me.username ? ' <span class="sub">(you)</span>' : ""}</td>
+      <td>${u.sso ? `<span class="role ${u.role === "admin" ? "admin" : ""}" title="Set by the provider's groups">${esc(u.role)}</span>`
+        : `<select class="sel" data-urole="${+u.id}" aria-label="Role for ${esc(u.username)}">${A.roles.map(r => `<option value="${esc(r)}" ${r === u.role ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>`}</td>
       <td class="hide-sm sub">${esc(ago(u.last_login))}</td>
-      <td><div class="acts"><button data-upw="${+u.id}" data-uname="${esc(u.username)}">Reset password</button>
+      <td><div class="acts">${u.sso ? "" : `<button data-upw="${+u.id}" data-uname="${esc(u.username)}">Reset password</button>`}
         <button data-udis="${+u.id}" data-val="${u.disabled ? 0 : 1}">${u.disabled ? "Enable" : "Disable"}</button>
         <button class="danger" data-udel="${+u.id}" data-uname="${esc(u.username)}">Delete</button></div></td></tr>`).join("")
     || (builtin ? "" : `<tr class="empty"><td colspan="4" class="sub">No accounts yet.</td></tr>`);
+  const S = A.sso || {};
+  $("#acc-sso").innerHTML = !S.configured
+    ? `Off. Set <code>OIDC_ISSUER</code>, <code>OIDC_CLIENT_ID</code>, <code>OIDC_CLIENT_SECRET</code> and <code>OIDC_ADMIN_GROUPS</code> / <code>OIDC_VIEWER_GROUPS</code> in <code>.env</code> to sign in with Authentik, Keycloak, Authelia or another OpenID Connect provider.`
+    : (S.problems.length ? `<span style="color:var(--amber)">Not working: ${S.problems.map(esc).join("; ")}.</span><br>` : "") +
+      `Provider <code>${esc(S.issuer)}</code>. Admins: ${S.admin_groups.length ? S.admin_groups.map(g => `<span class="chip tag">${esc(g)}</span>`).join(" ") : "<span class='sub'>no group</span>"} ·
+       Viewers: ${S.viewer_groups.length ? S.viewer_groups.map(g => `<span class="chip tag">${esc(g)}</span>`).join(" ") : "<span class='sub'>no group</span>"} ·
+       Everyone else: ${S.default_role === "viewer" ? "viewer" : "not allowed"}. Roles are refreshed from the groups at every sign-in.`;
   $("#acc-tokens").innerHTML = A.tokens.map(t => `<tr>
       <td><b>${esc(t.name)}</b> <span class="mono sub">${esc(t.prefix)}…</span></td>
       <td><span class="role ${t.role === "admin" ? "admin" : ""}">${esc(t.role)}</span></td>

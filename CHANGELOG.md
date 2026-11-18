@@ -4,6 +4,14 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.9.0 (2026-11-18): Single sign-on (Authentik and other OpenID Connect providers)
+- **Sign in with Authentik**, Keycloak, Authelia, Google or any OpenID Connect provider. The sign-in page shows the button when `OIDC_*` is set; password sign-in keeps working alongside it.
+- **Roles from groups:** `OIDC_ADMIN_GROUPS` sign in as admin and `OIDC_VIEWER_GROUPS` as viewer, refreshed at every sign-in. Others are refused unless `OIDC_DEFAULT_ROLE=viewer`. Someone removed from the groups is signed out and their tokens are revoked.
+- SSO accounts appear in the Access tab with an **SSO** tag. They have no password, can't be given one, and can't take over an existing local username. Admins can still disable or delete them.
+- Security: authorization code flow with PKCE, a one-time state tied to the browser, nonce, and full ID-token checks (signature from the provider's keys, issuer, audience, expiry). Only public-key signatures are accepted. `OIDC_CA_FILE` trusts a home CA without turning certificate checks off.
+- New dependency: PyJWT 2.15.1 (audited).
+- **Rollback-safe:** two new columns on the accounts table only. Older versions ignore SSO accounts, which can't sign in there; everyone else is unaffected.
+
 ## v1.8.0 (2026-11-18): Accounts, read-only users and API tokens
 - **Sign-in page** instead of the browser's login box. Sign out from the header.
 - **Accounts** (new Access tab): give each person their own sign-in, as an **admin** or a read-only **viewer**. Viewers see everything but can't change anything; the dashboard hides the buttons they can't use, and the server refuses the changes either way.

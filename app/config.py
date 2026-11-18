@@ -84,6 +84,20 @@ class Config:
     web_password: str = ""              # empty = no login (LAN-only use)
     allowed_hosts: list[str] = field(default_factory=list)  # empty = any Host header
 
+    # Single sign-on (OpenID Connect: Authentik, Keycloak, Authelia, Google...)
+    oidc_issuer: str = ""               # empty = SSO off
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_redirect_url: str = ""         # empty = https://<host you used>/api/auth/oidc/callback
+    oidc_scopes: str = "openid profile email"
+    oidc_admin_groups: list[str] = field(default_factory=list)
+    oidc_viewer_groups: list[str] = field(default_factory=list)
+    oidc_default_role: str = "none"     # role for users in neither list: none | viewer
+    oidc_groups_claim: str = "groups"
+    oidc_button_label: str = "Sign in with SSO"
+    oidc_verify_tls: bool = True
+    oidc_ca_file: str = ""              # extra CA certificate to trust for the provider
+
     # Router integration (ROUTER_TYPE: linksys | opnsense | pfsense | unifi | openwrt)
     router_type: str = ""
     router_url: str = ""
@@ -146,6 +160,18 @@ class Config:
             web_username=_env("WEB_USERNAME", "admin"),
             web_password=_env("WEB_PASSWORD"),
             allowed_hosts=[h.strip().lower() for h in _env("ALLOWED_HOSTS").split(",") if h.strip()],
+            oidc_issuer=_env("OIDC_ISSUER").rstrip("/"),
+            oidc_client_id=_env("OIDC_CLIENT_ID"),
+            oidc_client_secret=_env("OIDC_CLIENT_SECRET"),
+            oidc_redirect_url=_env("OIDC_REDIRECT_URL"),
+            oidc_scopes=_env("OIDC_SCOPES", "openid profile email"),
+            oidc_admin_groups=[g.strip() for g in _env("OIDC_ADMIN_GROUPS").split(",") if g.strip()],
+            oidc_viewer_groups=[g.strip() for g in _env("OIDC_VIEWER_GROUPS").split(",") if g.strip()],
+            oidc_default_role="viewer" if _env("OIDC_DEFAULT_ROLE", "none").lower() == "viewer" else "none",
+            oidc_groups_claim=_env("OIDC_GROUPS_CLAIM", "groups"),
+            oidc_button_label=_env("OIDC_BUTTON_LABEL", "Sign in with SSO")[:40],
+            oidc_verify_tls=_env("OIDC_VERIFY_TLS", "true").lower() not in ("0", "false", "no", "off"),
+            oidc_ca_file=_env("OIDC_CA_FILE"),
             router_type=_env("ROUTER_TYPE").lower() or ("linksys" if _env("LINKSYS_URL") else ""),
             router_url=_env("ROUTER_URL") or _env("LINKSYS_URL"),
             router_username=_env("ROUTER_USERNAME") or _env("LINKSYS_USERNAME"),
