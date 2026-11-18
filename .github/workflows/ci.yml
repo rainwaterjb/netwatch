@@ -1,0 +1,26 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements.txt pip-audit
+      - name: Byte-compile
+        run: python -m compileall -q app
+      - name: Import the app
+        env: { NETWATCH_DISABLE_SCANNER: "1", DB_PATH: /tmp/netwatch-ci.db, DISCOVERY: "false" }
+        run: python -c "from app import main; print('ok')"
+      - name: Known vulnerabilities in dependencies
+        run: pip-audit -r requirements.txt
+      - name: Build the container image
+        run: docker build -t netwatch:ci .

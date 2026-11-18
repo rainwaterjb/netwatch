@@ -699,6 +699,8 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 
 ## Security
 
+Found a vulnerability? Please report it privately; see [SECURITY.md](SECURITY.md).
+
 NetWatch is designed to run on a trusted home or lab network. It ships with these protections:
 
 **Container hardening**
@@ -863,6 +865,7 @@ netwatch/
 ├── requirements.txt     # Fully pinned, audited dependencies
 ├── update.sh            # Update, or switch to any release (rollback)
 ├── CHANGELOG.md         # What changed in each release
+├── SECURITY.md          # How to report a vulnerability privately
 ├── examples/monitoring/ # Prometheus config, alert rules, Grafana dashboard, optional Docker stack
 ├── .env.example         # Configuration template (copy to .env)
 ├── .gitignore
