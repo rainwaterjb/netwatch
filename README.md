@@ -88,7 +88,7 @@ nano .env                    # set SUBNET, WEB_PASSWORD and your notification se
 ./update.sh                  # builds and starts the latest release
 ```
 
-`./update.sh` checks out the newest **release** (not the development branch), builds the image and starts it. Prefer plain Docker Compose? `git checkout "$(git tag -l 'v*' --sort=-v:refname | head -n1)" && docker compose up -d --build` does the same.
+`./update.sh` checks out the newest **release** (not unreleased code on the `main` branch), builds the image and starts it. Prefer plain Docker Compose? `git checkout "$(git tag -l 'v*' --sort=-v:refname | head -n1)" && docker compose up -d --build` does the same.
 
 Then open `https://<host-ip>:8443` and sign in with `WEB_USERNAME` / `WEB_PASSWORD`. Your browser will warn about the certificate the first time; see [HTTPS](#https) to make that go away. `http://<host-ip>:8080` redirects to the HTTPS address.
 
@@ -131,7 +131,7 @@ Full details are in [CHANGELOG.md](CHANGELOG.md) and on the [Releases page](http
 
 | Release | What it added | If you roll back to an older release |
 |---|---|---|
-| **v1.13.1** | `./update.sh` installs the latest release (not the development branch) and `--list` says when an update is out; README and `.env.example` brought up to date | `./update.sh` with no version follows `main` again |
+| **v1.13.1** | `./update.sh` installs the latest release (not unreleased code on `main`) and `--list` says when an update is out; README and `.env.example` brought up to date | `./update.sh` with no version follows `main` again |
 | **v1.13.0** | Prometheus `/metrics`, a Grafana dashboard and alert rules, JSON logs for Loki | `/metrics` is gone (Prometheus scrapes fail); logs go back to plain text |
 | **v1.12.0** | Installable app and native push notifications | App notifications stop; the app still opens as a web page |
 | **v1.11.0** | Device recognition (type, model, OS) and private Wi-Fi address linking | Types disappear; old linked addresses show up again as separate offline devices |
