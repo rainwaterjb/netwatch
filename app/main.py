@@ -30,6 +30,7 @@ from .pihole import PiholeIntegration
 from .services import KINDS as CHECK_KINDS, ServiceChecker
 from .wan import WanMonitor
 from .rules import EVENTS as RULE_EVENTS, RuleEngine, RuleError
+from .recognize import TYPES as DEVICE_TYPES, Recognizer, is_private_mac
 from . import alert_channels
 from .notifier import Notifier
 from .routers import RouterError, create_router
@@ -57,7 +58,9 @@ for _p in oidc.problems():
     log.warning("Single sign-on: %s", _p)
 rules = RuleEngine(store, alerts, notifier, router=router, cfg=cfg)
 alerts.rules = rules
-BACKGROUND = (monitor, router, alerts, checker, wan, pihole, rules)
+recognizer = Recognizer(cfg, store, monitor, alerts, router=router)
+monitor.recognizer = recognizer
+BACKGROUND = (monitor, router, alerts, checker, wan, pihole, rules, recognizer)
 STATIC = FsPath(__file__).parent / "static"
 
 
@@ -314,7 +317,7 @@ def remove_token(request: Request, token_id: int = Path(ge=1)):
 
 @app.get("/api/status")
 def status():
-    devices = store.all_devices()
+    devices = [d for d in store.all_devices() if not d.get("same_as")]
     return {
         "now": time.time(),
         "subnet": str(monitor.network) if monitor.network else cfg.subnet,
@@ -338,6 +341,7 @@ def status():
         "held_alerts": store.count_pending(),
         "quiet_now": in_quiet_hours(alerts.settings()),
         "checks_down": sum(1 for c in store.checks() if c["enabled"] and c["state"] == "down"),
+        "recognition": recognizer.status(),
     }
 
 
@@ -451,6 +455,7 @@ def _enrich(d, snap=None):
         if s:
             d["dns"] = {k: s[k] for k in ("queries_24h", "queries_1h", "baseline_per_hour", "chatty")}
     d["tags"] = _split_tags(d.get("tags"))
+    d["private_mac"] = is_private_mac(d["mac"])
     return d
 
 
@@ -493,6 +498,7 @@ class DeviceUpdate(BaseModel):
     critical: bool | None = None
     tags: list[str] | None = Field(default=None, max_length=10)
     snooze_minutes: int | None = Field(default=None, ge=0, le=60 * 24 * 30)
+    device_type: str | None = Field(default=None, max_length=20)     # a type, or "auto"
 
 
 @app.patch("/api/devices/{mac}")
@@ -508,12 +514,24 @@ def update_device(body: DeviceUpdate, mac: str = Path(pattern=MAC_PATTERN)):
             fields[k] = int(fields[k])
     if "tags" in fields:
         fields["tags"] = _clean_tags(fields["tags"])
+    if "device_type" in fields:
+        t = fields.pop("device_type")
+        if t == "auto":
+            fields["type_manual"] = 0
+        elif t in DEVICE_TYPES:
+            fields.update(device_type=t, type_manual=1, type_source="set by hand")
+        else:
+            raise HTTPException(400, "Unknown device type")
+    if fields.get("acknowledged"):
+        alerts.event("device_acknowledged", device=store.get_device(mac))
     if "snooze_minutes" in fields:
         minutes = fields.pop("snooze_minutes")
         fields["snooze_until"] = time.time() + minutes * 60 if minutes else None
         store.add_event("snooze", mac, None,
                         f"Alerts snoozed for {minutes} min" if minutes else "Snooze cleared")
     store.update_device(mac, **fields)
+    if fields.get("type_manual") == 0:
+        recognizer.reclassify(mac)                  # back to automatic: work it out again now
     return _enrich(store.get_device(mac))
 
 
@@ -527,6 +545,8 @@ def acknowledge(body: BulkAck):
     for mac in body.macs:
         if re.match(MAC_PATTERN, mac):
             n += store.update_device(mac.lower(), acknowledged=1)
+            if store.get_device(mac.lower()):
+                alerts.event("device_acknowledged", device=store.get_device(mac.lower()))
     return {"acknowledged": n}
 
 
@@ -652,6 +672,7 @@ class SettingsUpdate(BaseModel):
     chatty_alerts: str | None = None
     chatty_factor: float | None = Field(default=None, ge=2, le=100)
     chatty_min_per_hour: int | None = Field(default=None, ge=10, le=1_000_000)
+    auto_link_private: bool | None = None
 
 
 @app.get("/api/settings")
@@ -805,6 +826,70 @@ def dns_domain(name: str = Query(..., max_length=253)):
         c["mac"] = d["mac"] if d else None
         c["name"] = display_name(d, router) if d else None
     return {"domain": name, **result}
+
+
+# ---------- Recognition and private-address linking ----------
+@app.get("/api/devices/{mac}/recognition")
+def device_recognition(mac: str = Path(pattern=MAC_PATTERN)):
+    mac = mac.lower()
+    dev = store.get_device(mac)
+    if not dev:
+        raise HTTPException(404, "Unknown device")
+    return {"device_type": dev.get("device_type"), "model": dev.get("model"), "os": dev.get("os"),
+            "source": dev.get("type_source"), "manual": bool(dev.get("type_manual")), "types": DEVICE_TYPES,
+            "private_mac": is_private_mac(mac), "evidence": recognizer.evidence_rows(mac),
+            "aliases": recognizer.aliases(mac), "same_as": dev.get("same_as"),
+            "candidates": recognizer.candidates(mac)[:5]}
+
+
+@app.get("/api/links")
+def link_suggestions():
+    return {"suggestions": recognizer.suggestions()}
+
+
+def _link_call(fn, *args, **kw):
+    try:
+        return fn(*args, **kw)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/links/{link_id}/confirm")
+def confirm_link(request: Request, link_id: int = Path(ge=1)):
+    rows = store._query("SELECT * FROM identity_links WHERE id = ? AND state = 'suggested'", (link_id,))
+    if not rows:
+        raise HTTPException(404, "Unknown suggestion")
+    name = _link_call(recognizer.link, rows[0]["mac"], rows[0]["other"], by=(_who(request) or {}).get("username") or "admin")
+    return {"ok": True, "name": name}
+
+
+@app.post("/api/links/{link_id}/reject")
+def reject_link(request: Request, link_id: int = Path(ge=1)):
+    _link_call(recognizer.reject, link_id, (_who(request) or {}).get("username") or "admin")
+    return {"ok": True}
+
+
+class LinkIn(BaseModel):
+    other: str = Field(pattern=MAC_PATTERN)
+
+
+@app.post("/api/devices/{mac}/link")
+def link_device(body: LinkIn, request: Request, mac: str = Path(pattern=MAC_PATTERN)):
+    """Say that `mac` (newer address) is the same device as `other` (older one)."""
+    name = _link_call(recognizer.link, mac.lower(), body.other.lower(), by=(_who(request) or {}).get("username") or "admin")
+    return {"ok": True, "name": name}
+
+
+@app.post("/api/devices/{mac}/unlink")
+def unlink_device(request: Request, mac: str = Path(pattern=MAC_PATTERN)):
+    _link_call(recognizer.unlink, mac.lower(), by=(_who(request) or {}).get("username") or "admin")
+    return {"ok": True}
+
+
+@app.post("/api/discover")
+def discover_now():
+    recognizer.kick()
+    return {"ok": True}
 
 
 # ---------- Alert rules, channels and open alerts ----------

@@ -4,6 +4,15 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.11.0 (2026-11-18): Device recognition and private Wi-Fi addresses
+- **Device recognition:** each device gets a type (phone, tablet, computer, TV, streaming player, speaker, printer, camera, smart home, console, network gear, server, watch), an icon, and often its model and OS. Learned from DHCP requests (name, vendor class, fingerprint), Bonjour/mDNS (AirPlay, Google Cast, printers, HomeKit…), UPnP/SSDP descriptions, the MAC manufacturer and the hostname. Admins can set the type by hand.
+- **Private Wi-Fi addresses:** devices using a randomized MAC get a badge. When one rejoins under a new address with the same name (and DHCP fingerprint) as a known device, the Overview asks "… looks like Alex's iPhone": **Same device** moves the name, tags, alert settings and service checks to the new address and hides the old record; **Not the same** is remembered. Generic names never match, and devices online at the same time are never linked. Link and unlink by hand in the details window.
+- **Automatic linking** (Settings → Device recognition, off by default) links clear-cut cases straight away, so a phone with a new private address doesn't raise a "new device" alert.
+- Marking a device as known (or linking it) now closes its open "new device" rule alert.
+- Security: the DHCP listener uses a kernel filter so only DHCP requests are read; UPnP descriptions are fetched only from the device that answered, over http, with no redirects, a 64 KB limit and no XML entities; everything devices say is length-limited and shown as plain text.
+- `DISCOVERY=false` turns recognition off. No new dependencies.
+- **Rollback-safe:** new columns and tables only. Older versions show linked old addresses as separate offline devices again.
+
 ## v1.10.0 (2026-11-18): Alert rules, new channels, escalation and acknowledgement
 - **Alert rules** (new Alerts tab): choose what to be told about (device offline, new device, service down, internet down, chatty device), for which devices or checks (any, critical, a tag, or chosen ones), and **only if it lasts N minutes**. Brief blips send nothing and are noted in the Activity log.
 - **Channels:** Discord, Slack, Telegram, Gotify, ntfy, webhooks (Home Assistant's webhook trigger works out of the box, with optional HMAC signing) and MQTT, alongside phone and email. Each has a Send test button and shows its last result.

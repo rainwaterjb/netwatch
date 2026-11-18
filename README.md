@@ -15,6 +15,8 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Timeline** | Internet outages, failed service checks, when each device was online, and DNS volume, all lined up on one time axis (6 hours, 24 hours or 7 days), so you can see what happened at the same moment. Filter by tag or show only devices that dropped. |
 | **Accounts and API tokens** | A sign-in page, separate accounts for each person (admin or read-only viewer), and API tokens for tools like Homepage. The built-in admin from `.env` always works. |
 | **Single sign-on** *(optional)* | Sign in with Authentik, Keycloak, Authelia or any OpenID Connect provider. Admin or viewer role comes from the provider's groups. |
+| **Device recognition** | Works out what each device is (phone, tablet, computer, TV, streaming player, speaker, printer, camera, smart home, console, network gear, server) and its model, from what it already announces on the network: DHCP, Bonjour/mDNS and UPnP. |
+| **Private Wi-Fi addresses** | Phones and laptops change their MAC address. When one rejoins under a new private address, NetWatch recognises it and offers to link it to the device you already named, keeping its name, tags and alerts. |
 | **Device inventory** | Every device that answers on the LAN, with IP address, MAC address, manufacturer (looked up from the MAC), and hostname (via reverse DNS). Give devices friendly names from the dashboard. |
 | **IP address map** | A grid of the whole subnet showing which addresses are in use, which were last used by a device that's currently offline, and which are free. One click copies the list of free addresses. |
 | **Connection time** | How long each device has been connected since it last joined, plus first-seen and last-seen times. |
@@ -242,6 +244,30 @@ After changing `.env`, restart with `docker compose up -d`, then click **Send te
 On the **Devices** tab, tick **Phone**, **Email**, or both for any device. Tick **+ when back** to also hear when it reconnects. Click a device's name to rename it. To be told about unknown devices joining, set `NOTIFY_NEW_DEVICES` to `phone`, `email`, or `both`.
 
 ---
+
+## Device recognition and private addresses
+
+NetWatch works out what each device is, shown as an icon and a label ("Tablet · iPadOS", "Streaming player · Chromecast with Google TV"). It only listens to and asks for what devices already share on your LAN:
+
+- **DHCP:** when a device joins, it broadcasts its name, a vendor class (e.g. `android-dhcp-14`, `MSFT 5.0`) and the list of settings it asks for, which works like an operating-system fingerprint. NetWatch listens with a kernel filter that only lets DHCP requests through.
+- **Bonjour / mDNS:** a few questions every 15 minutes for common services (AirPlay, Google Cast, printers, HomeKit, file sharing). Answers include models such as `iPhone15,2`.
+- **UPnP / SSDP:** one discovery broadcast every 15 minutes. TVs, speakers, consoles and routers answer, and NetWatch reads their description file (only from the device that answered, with size limits, no redirects and no XML entities).
+- The manufacturer from the MAC address, and the hostname.
+
+Open a device and look under **What it is** to see the type, what it was recognised from, and everything NetWatch has seen. Admins can set the type by hand; choose **Automatic** to go back.
+
+### Private (randomized) Wi-Fi addresses
+
+iPhones, Android phones, Windows and macOS use a **private MAC address** for each Wi-Fi network, and may change it. To NetWatch that looks like a brand-new device, and the old one seems to disappear. Those devices get a **private address** badge.
+
+When a device with a private address appears with the **same name** as a device NetWatch already knows (for example `Alexs-iPhone`), ideally with the same DHCP fingerprint, the Overview shows **"… looks like Alex's iPhone"**:
+
+- **Same device:** the new address takes the old one's name, tags, alert settings and service checks. The old record is kept for history, hidden from lists, and can't raise alerts. Any "new device" alert is closed.
+- **Not the same:** NetWatch remembers and won't ask again.
+
+Generic names such as `iPhone` or `android-1a2b3c` are never enough, and two devices online at the same time are never treated as one. You can also link or unlink devices by hand in the details window. To skip the question when it's clear-cut (same name **and** same DHCP fingerprint), turn on **automatic linking** under Settings → Device recognition; then a phone that rejoins with a new address doesn't trigger a "new device" alert at all.
+
+Set `DISCOVERY=false` to turn recognition off. **Rolling back is safe:** older versions ignore the new columns and tables; linked old addresses simply show up as separate (offline) devices again.
 
 ## Alert rules and channels
 
@@ -510,6 +536,8 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `WEB_USERNAME` | `admin` | Dashboard login username |
 | `WEB_PASSWORD` | *(empty)* | Built-in admin password. **Strongly recommended.** Needed for sign-in, accounts, API tokens and DNS details. Empty disables login. |
 | `ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames/IPs allowed to reach the dashboard |
+| `DISCOVERY` | `true` | Recognise devices from DHCP, Bonjour/mDNS and UPnP |
+| `DISCOVERY_INTERVAL` | `900` | Seconds between Bonjour/UPnP passes (min 300) |
 | `PUBLIC_URL` | *(empty)* | NetWatch's address, added as a link to rule alerts |
 | `OIDC_ISSUER` | *(empty)* | Single sign-on provider's issuer URL. Empty turns SSO off. |
 | `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | *(empty)* | Client credentials from the provider |
@@ -649,6 +677,11 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `POST` | `/api/auth/password` | Change your own password: `current`, `new` |
 | `GET` / `POST` / `PATCH` / `DELETE` | `/api/users[/{id}]` | Manage accounts (admins, signed in; not with a token) |
 | `GET` / `POST` / `DELETE` | `/api/tokens[/{id}]` | Manage API tokens (admins, signed in; not with a token) |
+| `GET` | `/api/devices/{mac}/recognition` | Type, model, evidence, linked addresses and possible matches |
+| `GET` | `/api/links` | "Same device?" suggestions (admins) |
+| `POST` | `/api/links/{id}/confirm`, `/api/links/{id}/reject` | Accept or turn down a suggestion (admins) |
+| `POST` | `/api/devices/{mac}/link`, `/api/devices/{mac}/unlink` | Link `{"other": "<older MAC>"}` by hand, or unlink an old address (admins) |
+| `POST` | `/api/discover` | Run a Bonjour/UPnP pass now (admins) |
 | `GET` / `POST` / `PUT` / `DELETE` | `/api/alert-rules[/{id}]` | Alert rules (admins) |
 | `GET` / `POST` / `PUT` / `DELETE` | `/api/alert-channels[/{id}]` | Alert channels; secrets are never returned (admins) |
 | `POST` | `/api/alert-channels/{id}/test` | Send a test message |
@@ -685,6 +718,7 @@ netwatch/
 │   ├── wan.py           # Internet outage tracking
 │   ├── pihole.py        # Optional Pi-hole v6 integration
 │   ├── history.py       # Device presence timeline
+│   ├── recognize.py     # Device recognition (DHCP, mDNS, SSDP) and private-address linking
 │   ├── timeline.py      # Overview timeline (outages, checks, presence, DNS)
 │   ├── wol.py           # Wake-on-LAN
 │   ├── db.py            # SQLite storage

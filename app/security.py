@@ -18,7 +18,8 @@ PUBLIC_PATHS = {"/healthz", "/netwatch.crt", "/login", "/api/auth/login", "/api/
 # Read-only accounts may still sign out and change their own password.
 VIEWER_WRITE_PATHS = {"/api/auth/logout", "/api/auth/password"}
 # Only admins may see these, even read-only.
-ADMIN_ONLY_PREFIXES = ("/api/users", "/api/tokens", "/api/export/backup", "/api/alert-channels", "/api/alert-rules")
+ADMIN_ONLY_PREFIXES = ("/api/users", "/api/tokens", "/api/export/backup", "/api/alert-channels", "/api/alert-rules",
+                       "/api/links")
 # ...and acknowledge alerts.
 VIEWER_WRITE_PREFIXES = ("/api/incidents/",)
 

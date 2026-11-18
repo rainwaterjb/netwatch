@@ -157,6 +157,26 @@ CREATE TABLE IF NOT EXISTS alert_incidents (
     result        TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_incidents_open ON alert_incidents(state, subject);
+CREATE TABLE IF NOT EXISTS fingerprints (
+    mac         TEXT NOT NULL,
+    key         TEXT NOT NULL,                        -- e.g. dhcp:hostname, mdns:services, ssdp:modelName
+    value       TEXT,
+    first_seen  REAL,
+    last_seen   REAL,
+    PRIMARY KEY (mac, key)
+);
+CREATE TABLE IF NOT EXISTS identity_links (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    mac         TEXT NOT NULL,                        -- the newer (private) address
+    other       TEXT NOT NULL,                        -- the device it seems to be
+    state       TEXT NOT NULL,                        -- suggested | confirmed | rejected
+    score       INTEGER,
+    reason      TEXT,
+    created     REAL,
+    decided     REAL,
+    decided_by  TEXT,
+    UNIQUE (mac, other)
+);
 CREATE TABLE IF NOT EXISTS outages (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     start   REAL NOT NULL,
@@ -179,6 +199,13 @@ DEVICE_MIGRATIONS = [
     ("tags", "TEXT NOT NULL DEFAULT ''"),
     ("snooze_until", "REAL"),
     ("critical", "INTEGER NOT NULL DEFAULT 0"),
+    # v1.11.0: recognition and private-address linking
+    ("device_type", "TEXT"),
+    ("model", "TEXT"),
+    ("os", "TEXT"),
+    ("type_source", "TEXT"),
+    ("type_manual", "INTEGER NOT NULL DEFAULT 0"),
+    ("same_as", "TEXT"),                    # set on an old address linked to a newer one
 ]
 CHECK_COLUMNS = {
     "name", "kind", "mac", "host", "port", "path", "https", "verify_tls", "interval", "timeout",
@@ -190,6 +217,7 @@ DEVICE_COLUMNS = {
     "ip", "hostname", "vendor", "nickname", "first_seen", "last_seen", "online",
     "online_since", "missed_scans", "notify_phone", "notify_email", "notify_return",
     "acknowledged", "tags", "snooze_until", "critical",
+    "device_type", "model", "os", "type_source", "type_manual", "same_as",
 }
 
 

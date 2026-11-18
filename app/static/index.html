@@ -122,7 +122,7 @@
   .spark i { width: 4px; height: 100%; background: var(--green); opacity: .8; border-radius: 1px; }
   .spark i.f { background: var(--red); }
   .k-service_down, .k-internet_down, .k-chatty { color: var(--red); } .k-service_up, .k-internet_up { color: var(--green); }
-  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end, .k-auth, .k-ack { color: var(--muted); } .k-escalated { color: #a371f7; }
+  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end, .k-auth, .k-ack, .k-linked { color: var(--muted); } .k-escalated { color: #a371f7; }
   .bar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--free); }
   .bar i { display: block; height: 100%; }
   .bar i.online { background: var(--green); } .bar i.offline { background: var(--red); opacity: .75; } .bar i.unseen { background: var(--free); }
@@ -372,6 +372,12 @@
   .pill.mute { background: var(--free); color: var(--muted); }
   #ru-items { background: var(--bg); color: var(--text); }
   .rule-off { opacity: .55; }
+  .ti { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; flex: none; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+  h2 .ti { width: 20px; height: 20px; vertical-align: -3px; }
+  .rec-type { display: flex; align-items: center; gap: 4px; font-size: 15px; color: var(--text); }
+  details.ev summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
+  details.ev ul.plain li span:last-child { text-align: right; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -586,6 +592,13 @@
       <div class="opts"><span class="grow"></span><button class="primary" id="st-save">Save settings</button></div>
     </div>
     <div class="card">
+      <h3>Device recognition <button class="push" id="st-discover">Look again now</button></h3>
+      <p class="info">NetWatch works out what each device is (phone, TV, printer…) from what it already announces on your network: DHCP, Bonjour/mDNS and UPnP. It never logs in to anything.</p>
+      <div id="st-rec" class="sub" style="margin-bottom:10px"></div>
+      <label class="chk"><input type="checkbox" id="st-autolink"> Link phones and laptops that rejoin with a new private Wi-Fi address automatically, when it's clearly the same device (same name and DHCP fingerprint). Otherwise NetWatch asks first.</label>
+      <div class="opts"><span class="grow"></span><button class="primary" id="st-save2">Save</button></div>
+    </div>
+    <div class="card">
       <h3>Tags</h3>
       <p class="info">Add tags to devices from their detail page (click a device's name). Then turn alerts on or off for a whole group here.</p>
       <div id="tag-list" class="sub">No tags yet.</div>
@@ -737,7 +750,7 @@ async function api(path, opts = {}) {
 async function refresh() {
   try {
     const [st, dv, ips] = await Promise.all([api("/api/status"), api("/api/devices"), api("/api/ips")]);
-    state.status = st; state.devices = dv.devices; state.now = dv.now; state.ips = ips.ips;
+    state.status = st; state.allDevices = dv.devices; state.devices = dv.devices.filter(d => !d.same_as); state.now = dv.now; state.ips = ips.ips;
     if (state.tab === "events") state.events = (await api("/api/events?limit=300")).events;
     if (state.tab === "home") await loadHome();
     if (state.tab === "dns" && !state.dns) loadDomains();
@@ -830,8 +843,8 @@ function renderDevices() {
   $("#dev-body").innerHTML = rows.map(d => `
     <tr class="${d.online ? "" : "off"}">
       <td class="c-dot"><span class="dot ${d.online ? "on" : "off"}" title="${d.online ? "Online" : "Offline"}"></span></td>
-      <td class="c-name"><div class="name" data-mac="${d.mac}" title="Details, history, rename, tags">${esc(devName(d))}</div>${badges(d, now)}
-          <div class="sub">${esc([(d.nickname || d.router_name) && d.hostname, d.vendor].filter(Boolean).join(" · "))}</div></td>
+      <td class="c-name"><div class="name" data-mac="${d.mac}" title="Details, history, rename, tags">${typeIcon(d.device_type)}${esc(devName(d))}</div>${badges(d, now)}
+          <div class="sub">${esc([(d.nickname || d.router_name) && d.hostname, d.model || (TYPE_NAMES[d.device_type] || ""), d.private_mac ? "" : d.vendor].filter(Boolean).join(" · "))}</div></td>
       <td class="mono c-ip">${esc(d.ip)}${d.reserved_ip ? (d.reserved_ip === d.ip
           ? '<span class="chip" title="DHCP reservation on the router">reserved</span>'
           : `<span class="chip warn" title="Router has a reservation for this device at a different IP">reserved ${esc(d.reserved_ip)}</span>`) : ""}</td>
@@ -1022,12 +1035,13 @@ function errText(e) {
 const EVENT_NAMES = { new: "New device", online: "Online", offline: "Offline", ip_change: "IP changed",
   reservation: "Reservation", service_down: "Service down", service_up: "Service up", internet_down: "Internet down",
   internet_up: "Internet back", chatty: "Chatty device", chatty_end: "Chatty ended", wake: "Wake-on-LAN",
-  snooze: "Snooze", suppressed: "Alert skipped", auth: "Sign-in", ack: "Acknowledged", escalated: "Escalated" };
+  snooze: "Snooze", suppressed: "Alert skipped", auth: "Sign-in", ack: "Acknowledged", escalated: "Escalated", linked: "Linked" };
 const fmtNum = n => n == null ? "–" : Number(n).toLocaleString();
 const pct = v => v == null ? "–" : `${v}%`;
 function badges(d, now) {
   const out = [];
   if (!d.acknowledged) out.push(`<span class="chip new" title="New device: review it and mark it as known">NEW</span>`);
+  if (d.private_mac) out.push(`<span class="chip snz" title="Uses a private (randomized) Wi-Fi address, which can change. NetWatch suggests a link when it sees the same device under a new address.">private address</span>`);
   if (d.critical) out.push(`<span class="chip crit" title="Critical: alerts ignore quiet hours">critical</span>`);
   if (d.snooze_until && d.snooze_until > now) out.push(`<span class="chip snz" title="Alerts snoozed until ${esc(ts(d.snooze_until))}">snoozed</span>`);
   if (d.dns && d.dns.chatty) out.push(`<span class="chip chatty" title="${fmtNum(d.dns.queries_1h)} DNS queries in the last hour (usually ~${fmtNum(d.dns.baseline_per_hour)})">chatty</span>`);
@@ -1062,7 +1076,7 @@ async function openDetail(mac, keepScroll) {
   const snoozed = d.snooze_until && d.snooze_until > now;
   sheet.innerHTML = `
     <div class="dt-head">
-      <div><h2 id="dt-name">${esc(devName(d))}</h2>${badges(d, now)}
+      <div><h2 id="dt-name">${typeIcon(d.device_type, 20)}${esc(devName(d))}</h2>${badges(d, now)}
         <div class="sub">${d.online ? `Online for ${dur(now - d.online_since)}` : `Offline · last seen ${esc(ts(d.last_seen))}`}</div></div>
       <button id="dt-close" aria-label="Close">✕</button>
     </div>
@@ -1093,6 +1107,7 @@ async function openDetail(mac, keepScroll) {
         <dt>First seen</dt><dd>${esc(ts(d.first_seen))}</dd>
       </dl>
     </section>
+    <section><h4>What it is</h4><div id="dt-rec" class="sub">Loading…</div></section>
     <section>
       <h4>Tags</h4>
       <div class="tagedit">${(d.tags || []).map(t => `<span class="chip tag">#${esc(t)}<button data-untag="${esc(t)}" aria-label="Remove tag ${esc(t)}">✕</button></span>`).join("")}
@@ -1115,6 +1130,7 @@ async function openDetail(mac, keepScroll) {
         <span class="sub" style="text-align:right">${esc(e.detail || "")}<br>${esc(ts(e.ts))}</span></li>`).join("") || `<li class="sub">No activity yet.</li>`}</ul></section>`;
   modal.classList.remove("hidden"); document.body.style.overflow = "hidden";
   if (keepScroll) modal.scrollTop = scroll;
+  loadRecognition(mac);
   if (st.pihole && st.pihole.enabled) loadDns(mac);
 }
 async function loadDns(mac) {
@@ -1289,7 +1305,12 @@ function renderSettings() {
       $(id).innerHTML = CHANNELS.map(([val, label]) => `<option value="${val}">${label}</option>`).join(""); $(id).value = v[key];
     }
     $("#st-factor").value = v.chatty_factor; $("#st-min").value = v.chatty_min_per_hour;
+    $("#st-autolink").checked = !!v.auto_link_private;
   }
+  const rc = st.recognition || {};
+  $("#st-rec").textContent = !rc.enabled ? "Turned off (DISCOVERY=false)." :
+    `DHCP: ${rc.dhcp === "listening" ? "listening for devices joining" : rc.dhcp}. Last Bonjour/UPnP look: ${rc.last_discovery ? dur(st.now - rc.last_discovery) + " ago" : "not yet"}.` +
+    (rc.suggestions ? ` ${rc.suggestions} "same device?" suggestion(s) waiting on the Overview.` : "");
   $("#st-qnow").textContent = S.quiet_now ? `Quiet hours are on right now${S.held_alerts ? ` · ${S.held_alerts} alert(s) held` : ""}` : "";
   document.querySelectorAll(".pi").forEach(e => e.style.display = st.pihole && st.pihole.enabled ? "" : "none");
   // tags
@@ -1315,7 +1336,8 @@ document.querySelectorAll("#tab-set input, #tab-set select:not([data-tagalert])"
 $("#st-save").onclick = async () => {
   const body = { quiet_enabled: $("#st-quiet").checked, quiet_start: $("#st-qs").value || "22:00", quiet_end: $("#st-qe").value || "07:00",
     wan_alerts: $("#st-wan").value, chatty_alerts: $("#st-chatty").value,
-    chatty_factor: +$("#st-factor").value || 5, chatty_min_per_hour: +$("#st-min").value || 600 };
+    chatty_factor: +$("#st-factor").value || 5, chatty_min_per_hour: +$("#st-min").value || 600,
+    auto_link_private: $("#st-autolink").checked };
   try { state.settings = await api("/api/settings", { method: "PUT", body: JSON.stringify(body) }); state.settingsDirty = false; toast("Settings saved"); renderSettings(); }
   catch (e) { toast(errText(e)); }
 };
@@ -1348,6 +1370,7 @@ async function loadHome(force) {
                                           needTl ? api(`/api/timeline?hours=${state.tlHours}`) : null,
                                           api("/api/incidents?open=1&limit=50").catch(() => ({ incidents: [] }))]);
   state.checks = ck.checks; state.events = ev.events; state.openInc = inc.incidents;
+  state.links = (state.me || {}).role === "admin" ? (await api("/api/links").catch(() => ({ suggestions: [] }))).suggestions : [];
   if (tl) { state.tl = tl; state.tlAt = now; }
 }
 
@@ -1380,6 +1403,10 @@ function renderAttention() {
   const st = state.status, net = st.internet || {}, now = state.now, items = [];
   const item = (tag, cls, title, detail, actions = "") => items.push(
     `<li><span class="pill ${cls}">${tag}</span><div class="a-body"><b>${esc(title)}</b><div class="sub">${esc(detail)}</div></div><div class="a-act">${actions}</div></li>`);
+  for (const l of state.links || [])
+    items.push(`<li><span class="pill info">SAME?</span><div class="a-body"><b>${typeIcon(l.old.device_type)}${esc(l.new.name)} looks like ${esc(l.old.name)}</b>
+      <div class="sub">New private address ${esc(l.new.ip || "")} · ${esc(l.reason)}. Linking keeps the name, tags and alerts.</div></div>
+      <div class="a-act"><button data-linkok="${+l.id}">Same device</button><button data-linkno="${+l.id}">Not the same</button></div></li>`);
   for (const i of state.openInc.filter(i => i.state === "sent" && !i.acked_at))
     items.push(`<li><span class="pill ${i.escalated_at ? "esc" : "bad"}">${i.escalated_at ? "ESCALATED" : "ALERT"}</span><div class="a-body"><b>${esc(i.title)}</b>
       <div class="sub">${esc(i.rule_name || "")} · sent ${esc(dur(Date.now() / 1000 - i.sent_at))} ago</div></div>
@@ -1451,7 +1478,7 @@ function renderTimeline() {
   const total = devs.length, limit = state.tlShowAll ? Infinity : 25;
   h += `<div class="tl-sec">Devices · ${total}${tl.devices_truncated ? "+" : ""}</div>`;
   h += devs.slice(0, limit).map(d => row(
-    `${esc(d.name)} <span class="mono">${esc(d.ip ? "." + d.ip.split(".").pop() : "")}</span>${d.critical ? '<span class="chip crit">critical</span>' : ""}${d.new ? '<span class="chip new">new</span>' : ""}`,
+    `${typeIcon(d.device_type)}${esc(d.name)} <span class="mono">${esc(d.ip ? "." + d.ip.split(".").pop() : "")}</span>${d.critical ? '<span class="chip crit">critical</span>' : ""}${d.new ? '<span class="chip new">new</span>' : ""}`,
     d.segments.map(sp => `<b class="on" style="left:${L(sp[0])};width:${W(...sp)}" title="${esc(tip(sp, "Online"))}"></b>`).join(""),
     "", d.drops ? `${d.drops}↓` : "",
     `data-open="${esc(d.mac)}" title="${esc(`${d.name}${d.ip ? " · " + d.ip : ""}${d.availability != null ? ` · online ${d.availability}% of this range` : ""}${d.drops ? ` · ${plural(d.drops, "drop-off")}` : ""}`)}"`, "button")).join("")
@@ -1526,6 +1553,8 @@ $("#tab-home").addEventListener("click", async e => {
     if (t.dataset.open) return openDetail(t.dataset.open);
     if (t.dataset.goto) return gotoTab(t.dataset.goto);
     if (t.dataset.domains) { state.domMac = t.dataset.domains; return gotoTab("dns"); }
+    if (t.dataset.linkok) { t.disabled = true; const r = await api(`/api/links/${t.dataset.linkok}/confirm`, { method: "POST" }); toast(`Linked: ${r.name}`); return refresh(); }
+    if (t.dataset.linkno) { await api(`/api/links/${t.dataset.linkno}/reject`, { method: "POST" }); toast("OK, kept separate"); return refresh(); }
     if (t.dataset.ackinc) { t.disabled = true; await api(`/api/incidents/${t.dataset.ackinc}/ack`, { method: "POST" }); toast("Acknowledged"); return refresh(); }
     if ("tlmore" in t.dataset) { state.tlShowAll = true; return renderTimeline(); }
     if ("review" in t.dataset) { $("#only-new").checked = true; $("#show-offline").checked = true; return gotoTab("devices"); }
@@ -1903,6 +1932,83 @@ $("#tab-alr").addEventListener("click", async e => {
   if (d.ctest) { b.disabled = true; await alAction(() => api(`/api/alert-channels/${d.ctest}/test`, { method: "POST" }), r => r.result === "ok" ? "Test message sent" : `Test failed: ${r.result}`); b.disabled = false; return; }
   if (d.cdel && confirm(`Delete the channel "${d.cname}"?`)) return alAction(() => api(`/api/alert-channels/${d.cdel}`, { method: "DELETE" }), "Channel deleted");
 });
+
+// ---------- Device types and private-address links ----------
+const TYPE_NAMES = { phone: "Phone", tablet: "Tablet", computer: "Computer", tv: "TV", streaming: "Streaming player", speaker: "Speaker",
+  printer: "Printer", camera: "Camera", smart_home: "Smart home", console: "Game console", network: "Network gear", server: "Server / NAS", watch: "Watch" };
+const TYPE_PATHS = {
+  phone: '<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/>',
+  tablet: '<rect x="4.5" y="2.5" width="15" height="19" rx="2"/><path d="M11 18.5h2"/>',
+  computer: '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M1.5 20h21"/>',
+  tv: '<rect x="2.5" y="4" width="19" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/>',
+  streaming: '<rect x="3" y="8" width="18" height="8" rx="2"/><path d="M10 10.5l3.5 1.5-3.5 1.5z"/>',
+  speaker: '<rect x="6" y="2.5" width="12" height="19" rx="2"/><circle cx="12" cy="14" r="3.2"/><path d="M12 6.5h.01"/>',
+  printer: '<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="1.5"/><path d="M7 14h10v7H7z"/>',
+  camera: '<path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/>',
+  smart_home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M12 13v4M10 15h4"/>',
+  console: '<path d="M6 8h12a4 4 0 014 4v2a3 3 0 01-5.2 2L15 14H9l-1.8 2A3 3 0 012 14v-2a4 4 0 014-4z"/><path d="M7 11v3M5.5 12.5h3M16 12h.01M18 13.5h.01"/>',
+  network: '<rect x="2.5" y="13" width="19" height="7" rx="1.5"/><path d="M6 16.5h.01M9 16.5h.01M12 13V8M8.5 6.5a5 5 0 017 0M6 4a8.5 8.5 0 0112 0"/>',
+  server: '<rect x="3.5" y="3" width="17" height="8" rx="1.5"/><rect x="3.5" y="13" width="17" height="8" rx="1.5"/><path d="M7 7h.01M7 17h.01"/>',
+  watch: '<rect x="6.5" y="6" width="11" height="12" rx="3"/><path d="M9 6l.7-3.5h4.6L15 6M9 18l.7 3.5h4.6L15 18"/>',
+};
+function typeIcon(t, size) {
+  if (!TYPE_PATHS[t]) return "";
+  return `<svg class="ti" viewBox="0 0 24 24" ${size ? `style="width:${size}px;height:${size}px"` : ""} role="img" aria-label="${esc(TYPE_NAMES[t])}"><title>${esc(TYPE_NAMES[t])}</title>${TYPE_PATHS[t]}</svg>`;
+}
+const EV_LABELS = { "dhcp:hostname": "DHCP name", "dhcp:vendor": "DHCP vendor class", "dhcp:params": "DHCP fingerprint", "dhcp:requested_ip": "DHCP asked for",
+  "mdns:hostname": "Bonjour name", "mdns:services": "Bonjour services", "mdns:names": "Bonjour instance names", "ssdp:friendlyName": "UPnP name",
+  "ssdp:manufacturer": "UPnP maker", "ssdp:modelName": "UPnP model", "ssdp:modelDescription": "UPnP description", "ssdp:deviceType": "UPnP type",
+  "ssdp:server": "UPnP server", "ssdp:st": "UPnP services" };
+async function loadRecognition(mac) {
+  const box = $("#dt-rec"); if (!box) return;
+  let r;
+  try { r = await api(`/api/devices/${mac}/recognition`); } catch (e) { box.textContent = errText(e); return; }
+  if (state.detail !== mac || !$("#dt-rec")) return;
+  const admin = (state.me || {}).role === "admin";
+  const what = r.device_type ? `${typeIcon(r.device_type, 18)}<b>${esc(r.types[r.device_type] || r.device_type)}</b>` : "<b>Not sure yet</b>";
+  const extra = [r.model, r.os].filter(Boolean).map(esc).join(" · ");
+  const others = state.devices.filter(d => d.mac !== mac).sort((a, b) => devName(a).localeCompare(devName(b)));
+  box.innerHTML = `
+    <div class="rec-type">${what}${extra ? `<span class="sub" style="margin-left:6px">${extra}</span>` : ""}</div>
+    <div class="sub">${r.manual ? "Set by hand." : r.source ? `Recognised from ${esc(r.source)}.` : "No clues yet: NetWatch learns more when the device rejoins or answers Bonjour/UPnP."}
+      ${r.private_mac ? " Uses a private Wi-Fi address." : ""}</div>
+    ${admin ? `<div class="opts"><label class="chk">Type <select id="dt-type" class="sel"><option value="auto">Automatic${r.manual ? "" : " (current)"}</option>
+      ${Object.entries(r.types).map(([k, v]) => `<option value="${esc(k)}" ${r.manual && r.device_type === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label></div>` : ""}
+    ${r.aliases.length ? `<div style="margin-top:10px"><div class="sub">Also seen as (older private addresses):</div><ul class="plain">${r.aliases.map(a =>
+        `<li><span class="mono">${esc(a.mac)} <span class="sub">${esc(a.ip || "")}</span></span><span><span class="sub">last seen ${esc(ts(a.last_seen))}</span>
+         ${admin ? ` <button data-unlink="${esc(a.mac)}">Unlink</button>` : ""}</span></li>`).join("")}</ul></div>` : ""}
+    ${r.same_as ? `<p class="note">This is an old address of another device (${esc(r.same_as)}).</p>` : ""}
+    ${admin && !r.same_as && r.candidates.length ? `<div style="margin-top:10px"><div class="sub">Might be the same device as:</div><ul class="plain">${r.candidates.map(cd => {
+        const o = (state.allDevices || []).find(d => d.mac === cd.mac);
+        return `<li><span>${esc(o ? devName(o) : cd.mac)} <span class="sub">${esc(cd.why)}</span></span><span><button data-linkto="${esc(cd.mac)}">Same device</button></span></li>`; }).join("")}</ul></div>` : ""}
+    ${admin && !r.same_as ? `<details class="ev"><summary>Same device as one NetWatch already knows?</summary>
+      <div class="opts"><select id="dt-linkpick" class="sel" style="max-width:100%"><option value="">Choose the older device…</option>${others.map(d =>
+        `<option value="${esc(d.mac)}">${esc(clip(devName(d), 40))} · ${esc(d.ip || "")}</option>`).join("")}</select><button id="dt-linkgo">Link</button></div>
+      <p class="note">This device keeps its address and takes the other one's name, tags and alert settings. The other record is kept for history and hidden.</p></details>` : ""}
+    ${r.evidence.length ? `<details class="ev"><summary>What NetWatch has seen (${r.evidence.length})</summary><ul class="plain">${r.evidence.map(e =>
+        `<li><span>${esc(EV_LABELS[e.key] || e.key.replace(/^mdns:/, "Bonjour ").replace(/^ssdp:/, "UPnP "))}</span><span class="mono">${esc(e.value)}</span></li>`).join("")}</ul></details>` : ""}`;
+}
+$("#detail").addEventListener("change", async e => {
+  if (e.target.id !== "dt-type") return;
+  try { await api(`/api/devices/${state.detail}`, { method: "PATCH", body: JSON.stringify({ device_type: e.target.value }) }); toast("Type saved"); await refresh(); openDetail(state.detail, true); }
+  catch (err) { toast(errText(err)); }
+});
+$("#detail").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const mac = state.detail;
+  try {
+    if (b.dataset.unlink && confirm("Unlink this old address? It shows up as its own device again.")) {
+      await api(`/api/devices/${b.dataset.unlink}/unlink`, { method: "POST" }); toast("Unlinked"); await refresh(); return openDetail(mac, true);
+    }
+    const other = b.dataset.linkto || (b.id === "dt-linkgo" ? $("#dt-linkpick").value : "");
+    if (other) {
+      const r = await api(`/api/devices/${mac}/link`, { method: "POST", body: JSON.stringify({ other }) });
+      toast(`Linked: ${r.name}`); await refresh(); return openDetail(mac, true);
+    }
+  } catch (err) { toast(errText(err)); }
+});
+$("#st-discover").onclick = async () => { try { await api("/api/discover", { method: "POST" }); toast("Looking for devices… results appear within a minute"); } catch (e) { toast(errText(e)); } };
+$("#st-save2").onclick = () => $("#st-save").click();
 
 loadMe().then(refresh);
 setInterval(refresh, 10000);

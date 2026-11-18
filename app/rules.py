@@ -22,7 +22,7 @@ log = logging.getLogger("netwatch.rules")
 
 EVENTS = {   # what a rule can watch for -> (label, the event that ends it, what it applies to)
     "device_offline": ("A device goes offline", "device_online", "device"),
-    "device_new":     ("A new device joins", None, "device"),
+    "device_new":     ("A new device joins", "device_acknowledged", "device"),
     "service_down":   ("A service check fails", "service_up", "check"),
     "internet_down":  ("The internet goes down", "internet_up", None),
     "chatty":         ("A device gets chatty (DNS)", "chatty_end", "device"),
@@ -258,6 +258,8 @@ class RuleEngine:
         return True
 
     def _open(self, kind, now, device, check, detail):
+        if device and device.get("same_as"):
+            return                                              # an old, linked address: not a device of its own
         subject = self._subject(kind, device, check)
         for rule in self.rules(enabled_only=True):
             if rule["event"] != kind or not self._matches(rule, device, check):
@@ -302,7 +304,7 @@ class RuleEngine:
             if rule and rule["notify_resolved"]:
                 if rule["ignore_quiet"] or inc["critical"] or not in_quiet_hours(self.alerts.settings(), now):
                     end_title = {"device_offline": "Back online", "service_down": "Back up",
-                                 "chatty": "Back to normal"}.get(kind, "Resolved")
+                                 "chatty": "Back to normal", "device_new": "Reviewed"}.get(kind, "Resolved")
                     name = inc["title"].split(": ", 1)[-1]
                     self._deliver(rule["channels"], self._msg(
                         f"{end_title}: {name}", f"{name} recovered after {fmt_duration(lasted)}.", "resolved", kind, inc))

@@ -52,6 +52,7 @@ class Monitor:
         self.alerts = alerts or AlertManager(store, notifier)
         self.scanner = scanner
         self.iface = None
+        self.recognizer = None                  # set by main (recognize.py)
         self.network = None
         self.last_scan = None
         self.last_scan_duration = None
@@ -144,6 +145,13 @@ class Monitor:
                 last_seen=now, online=1, online_since=now, missed_scans=0, acknowledged=0,
             )
             self.store.add_event("new", mac, ip, f"New device: {hostname or vendor or mac}", ts=now)
+            if self.recognizer is not None:
+                try:
+                    self.recognizer.reclassify(mac)
+                    if self.recognizer.consider_link(mac, now=now) == "linked":
+                        return                  # a known device on a new private address: not "new"
+                except Exception:
+                    log.exception("Recognition of %s failed", mac)
             self.alerts.event("device_new", now=now, device=self.store.get_device(mac))
             mode = self.cfg.notify_new_devices
             if mode in ("phone", "email", "both"):

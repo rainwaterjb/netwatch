@@ -54,7 +54,7 @@ def build(store, router, pihole, hours, now, internet_enabled=True):
 
     devices = []
     for d in store.all_devices():
-        if d.get("first_seen") and d["first_seen"] > until:
+        if d.get("first_seen") and d["first_seen"] > until or d.get("same_as"):
             continue
         p = dev_history.presence(store, d, since, until)
         online = [[s["start"], s["end"]] for s in p["segments"] if s["state"] == "online"]
@@ -62,7 +62,7 @@ def build(store, router, pihole, hours, now, internet_enabled=True):
             continue                       # never here during this window: leave it off the chart
         drops = sum(1 for s in p["segments"] if s["state"] == "offline" and s["start"] > since)
         devices.append({
-            "mac": d["mac"], "name": display_name(d, router), "ip": d.get("ip"),
+            "mac": d["mac"], "name": display_name(d, router), "ip": d.get("ip"), "device_type": d.get("device_type"),
             "online": bool(d.get("online")), "critical": bool(d.get("critical")),
             "new": not d.get("acknowledged", 1),
             "tags": _tags(d.get("tags")),

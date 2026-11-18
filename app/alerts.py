@@ -20,6 +20,7 @@ DEFAULT_SETTINGS = {
     "chatty_alerts": "none",        # none | phone | email | both
     "chatty_factor": 5,             # x normal hourly volume
     "chatty_min_per_hour": 600,     # ignore devices quieter than this
+    "auto_link_private": False,     # link private-address devices to known ones without asking
 }
 CHANNEL_CHOICES = ("none", "phone", "email", "both")
 
