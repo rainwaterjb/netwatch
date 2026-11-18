@@ -3,6 +3,19 @@ import os
 from dataclasses import dataclass, field
 
 
+def _targets(value):
+    out = []
+    for item in value.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        host, _, port = item.rpartition(":")
+        if not host:
+            host, port = item, "443"
+        out.append((host, int(port)))
+    return out
+
+
 def _tls_mode(value):
     v = value.lower()
     if v in ("off", "false", "no", "0", "none"):
@@ -54,6 +67,18 @@ class Config:
     tls_key_file: str = ""
     tls_hostnames: list[str] = field(default_factory=list)
 
+    # Internet (WAN) monitoring
+    wan_check_enabled: bool = True
+    wan_check_interval: int = 30
+    wan_targets: list[tuple[str, int]] = field(
+        default_factory=lambda: [("1.1.1.1", 443), ("8.8.8.8", 443), ("9.9.9.9", 443)])
+
+    # Pi-hole v6 integration (read-only)
+    pihole_urls: list[str] = field(default_factory=list)
+    pihole_passwords: list[str] = field(default_factory=list)
+    pihole_verify_tls: bool = True
+    pihole_poll_interval: int = 300
+
     # Web UI security
     web_username: str = "admin"
     web_password: str = ""              # empty = no login (LAN-only use)
@@ -97,6 +122,13 @@ class Config:
             tls_cert_file=_env("TLS_CERT_FILE"),
             tls_key_file=_env("TLS_KEY_FILE"),
             tls_hostnames=[h.strip() for h in _env("TLS_HOSTNAMES").split(",") if h.strip()],
+            wan_check_enabled=_env("WAN_CHECK", "true").lower() not in ("0", "false", "no", "off"),
+            wan_check_interval=max(10, int(_env("WAN_CHECK_INTERVAL", "30"))),
+            wan_targets=_targets(_env("WAN_CHECK_TARGETS", "1.1.1.1:443,8.8.8.8:443,9.9.9.9:443")),
+            pihole_urls=[u.strip().rstrip("/") for u in _env("PIHOLE_URLS").split(",") if u.strip()],
+            pihole_passwords=[p for p in _env("PIHOLE_PASSWORD").split(",")] if _env("PIHOLE_PASSWORD") else [],
+            pihole_verify_tls=_env("PIHOLE_VERIFY_TLS", "true").lower() not in ("0", "false", "no", "off"),
+            pihole_poll_interval=max(60, int(_env("PIHOLE_POLL_INTERVAL", "300"))),
             web_username=_env("WEB_USERNAME", "admin"),
             web_password=_env("WEB_PASSWORD"),
             allowed_hosts=[h.strip().lower() for h in _env("ALLOWED_HOSTS").split(",") if h.strip()],

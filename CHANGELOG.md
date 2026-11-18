@@ -4,6 +4,24 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.5.0 (2026-11-17): Service checks, internet tracking, Pi-hole, and more
+New features:
+- **Service checks** (new Services tab): watch a web page (HTTP/HTTPS), a TCP port or ping, with uptime %, response times, and alerts when a service goes down or comes back. Checks can follow a device, so they survive IP changes.
+- **Internet outage tracking**: NetWatch checks your connection every 30 seconds and records outages, telling apart "the internet was down" from "the router was unreachable". You get an alert with the duration once it's back. Shows 24h/7d/30d uptime.
+- **Pi-hole integration** (v6+, read-only, supports several Pi-holes): DNS queries per device (24 hours and last hour), top domains, and **chatty-device** detection when a device suddenly makes far more queries than usual, with optional alerts.
+- **Wake-on-LAN** button for offline devices.
+- **Quiet hours**: alerts are held overnight and sent as one summary when quiet hours end. Devices marked **Critical** still alert right away.
+- **Snooze** alerts for a device (1 hour to 1 week).
+- **Device detail panel** (click a device): presence timeline with availability % for 24h/7d/30d, IP history, recent activity, DNS activity, linked service checks, rename, tags, snooze and more.
+- **New-devices inbox**: newly seen devices are marked NEW until you mark them as known, with a banner and a "New" filter.
+- **Tags**: label devices (e.g. #servers, #iot), filter by tag, and turn alerts on or off for a whole tag at once.
+- **Export**: download the device list as CSV, or a full database backup, from the new Settings tab.
+- Alerts are also held while the internet is down and sent once it's back.
+
+Compatibility:
+- The database gains new columns and tables. Older versions ignore them, so rolling back with `./update.sh v1.4.0` still works (tested).
+- Devices that existed before upgrading are treated as already known, so the inbox starts empty.
+
 ## v1.4.0 (2026-11-13): Mobile-friendly dashboard
 - Responsive layout that works on phones and tablets. On narrow screens, the device, reservation and activity tables become stacked cards, and the header stats become compact tiles.
 - Larger tap targets on touch screens, a horizontally scrolling tab bar, and a sort menu on phones (where column headers are hidden).

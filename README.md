@@ -15,6 +15,15 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **IP address map** | A grid of the whole subnet showing which addresses are in use, which were last used by a device that's currently offline, and which are free. One click copies the list of free addresses. |
 | **Connection time** | How long each device has been connected since it last joined, plus first-seen and last-seen times. |
 | **Drop-off alerts** | Per device, choose **Phone**, **Email**, or both. Optionally get a second alert when the device comes back. |
+| **Quiet hours & snooze** | Hold alerts overnight and get one summary in the morning. Snooze a device while you work on it. **Critical** devices always alert. |
+| **Device details** | Click any device for a presence timeline with availability %, IP history, recent activity, DNS activity and its service checks. |
+| **New-devices inbox** | Devices NetWatch has never seen are marked **NEW** until you review them. |
+| **Tags** | Group devices (`#servers`, `#iot`…), filter by tag, and switch alerts for a whole group at once. |
+| **Service checks** | Watch web pages, TCP ports and ping targets. Get uptime %, response times and down/up alerts. |
+| **Internet outage tracking** | Records when your internet (or router) was down and for how long, with 24h/7d/30d uptime. |
+| **Pi-hole integration** *(optional)* | DNS queries and top domains per device, plus alerts when a device suddenly gets "chatty". |
+| **Wake-on-LAN** | Wake sleeping devices from the dashboard. |
+| **Export** | Device list as CSV and a full database backup, one click each. |
 | **New-device alerts** | Optionally get notified whenever a device the tool has never seen joins your network. |
 | **Activity log** | A timeline of new devices, disconnects, reconnects, and IP address changes. |
 | **Router integration** *(optional)* | For Linksys Velop/Atlas routers: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses the names from your router. Optionally add and remove DHCP reservations from a **Reservations** tab. |
@@ -156,6 +165,66 @@ On the **Devices** tab, tick **Phone**, **Email**, or both for any device. Tick 
 
 ---
 
+## Alerts: quiet hours, snooze and critical devices
+
+All alerts (device drop-offs, service checks, internet outages, chatty devices, new devices) follow these rules:
+
+- **Quiet hours** (Settings tab): alerts during the chosen hours (e.g. 22:00 to 07:00) are held, then sent as **one summary** when quiet hours end: a short list by phone and full details by email.
+- **Critical devices** (device detail panel) ignore quiet hours and always alert right away. Use this for things like your NAS or Proxmox host.
+- **Snooze** (device detail panel) silences a single device's alerts for 1 hour up to 1 week, e.g. while you reboot it. Skipped alerts are still listed in the Activity log.
+- **While the internet is down**, alerts can't reach your phone or inbox. They're held and sent once the connection is back.
+
+## Service checks
+
+Being on the network doesn't mean a service is working. A server can answer ARP while its web UI has crashed. The **Services** tab lets you watch:
+
+| Type | Up when… | Example |
+|---|---|---|
+| **Web page (HTTP/HTTPS)** | the page answers with any status below 500 (a login page counts as up) | Proxmox UI: device = your Proxmox host, HTTPS, port 8006, certificate check **off** |
+| **Port (TCP)** | a connection to the port succeeds | SSH on 22, SMB on 445, a database port |
+| **Ping** | the host replies to ping | a switch or access point |
+
+- Link a check to a **device** and it follows that device if its IP changes, or enter a fixed host or IP.
+- Choose how often to check (30 seconds to 15 minutes) and how many failures in a row count as down (default 2), so one dropped packet doesn't page you.
+- Each check shows its current state, 24-hour and 7-day uptime, response time, and a strip of recent results.
+- For self-signed HTTPS (Proxmox, many NAS boxes), turn off **Check certificate**.
+
+## Internet outage tracking
+
+Every 30 seconds NetWatch tries to connect to a few public addresses (Cloudflare, Google and Quad9 DNS by default; change with `WAN_CHECK_TARGETS`). If none answer for two checks in a row, an outage begins. NetWatch also checks your router, so each outage is recorded as either:
+
+- **internet down (router OK)**: the problem is on your ISP's side, or
+- **router unreachable**: the problem is inside your home.
+
+Once the connection is back you get an alert with the duration (choose the channel in Settings). The Services tab shows uptime for 24 hours, 7 days and 30 days, plus a list of outages.
+
+## Pi-hole integration (optional)
+
+If you use Pi-hole v6 or newer as your DNS server, NetWatch can show, for each device:
+
+- DNS queries in the last 24 hours and the last hour, with an hour-by-hour chart.
+- Its usual hourly volume.
+- Its top domains.
+
+A device is flagged **chatty** when its last hour is far above normal: by default 5× its usual volume, and at least 600 queries. Both thresholds can be changed in Settings. That's often the first sign of a misbehaving IoT device, a stuck app, or malware. You can be alerted when it happens.
+
+```
+PIHOLE_URLS=http://192.168.1.2,http://192.168.1.3
+PIHOLE_PASSWORD=<app password>
+```
+
+- Several Pi-holes are supported; their numbers are added together per device.
+- Create an **app password** in Pi-hole under *Settings → Web interface / API* rather than using your main password. If your Pi-holes have different passwords, list them in the same order, comma-separated.
+- If you use Pi-hole's default self-signed HTTPS address, set `PIHOLE_VERIFY_TLS=false`, or use its `http://` address on your LAN.
+- NetWatch only reads from Pi-hole; it never changes Pi-hole settings.
+- Devices are matched by IP address, so a device that has made no DNS queries through Pi-hole shows no numbers.
+
+## Wake-on-LAN
+
+Offline devices have a **Wake** button (also in the detail panel). It sends a standard "magic packet" to the device's MAC address. It works only if the device supports Wake-on-LAN and has it enabled, usually in the BIOS/UEFI and the network adapter's settings. Most devices can only be woken over a wired connection.
+
+---
+
 ## Linksys router integration (optional)
 
 If your router is a Linksys Velop or Atlas mesh system, NetWatch can read its DHCP settings through the router's local JNAP API (the same API the Linksys web interface uses). With it enabled:
@@ -245,6 +314,13 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `LINKSYS_USERNAME` / `LINKSYS_PASSWORD` | `admin` / *(empty)* | Router admin login (read-only use) |
 | `ROUTER_POLL_INTERVAL` | `300` | Seconds between router syncs |
 | `LINKSYS_ALLOW_CHANGES` | `false` | Allow adding/removing DHCP reservations (also requires `WEB_PASSWORD`) |
+| `WAN_CHECK` | `true` | Internet outage tracking on/off |
+| `WAN_CHECK_INTERVAL` | `30` | Seconds between internet checks |
+| `WAN_CHECK_TARGETS` | `1.1.1.1:443,8.8.8.8:443,9.9.9.9:443` | Public host:port pairs to test |
+| `PIHOLE_URLS` | *(empty)* | Pi-hole addresses, comma-separated. Empty disables the integration. |
+| `PIHOLE_PASSWORD` | *(empty)* | Pi-hole (app) password; comma-separated if they differ |
+| `PIHOLE_VERIFY_TLS` | `true` | Set `false` for Pi-hole's self-signed HTTPS certificate |
+| `PIHOLE_POLL_INTERVAL` | `300` | Seconds between Pi-hole syncs |
 | `NOTIFY_NEW_DEVICES` | `none` | Alert on never-seen devices: `none`, `phone`, `email`, `both` |
 
 ---
@@ -310,6 +386,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 - **Sleeping phones.** Phones can ignore ARP for several minutes while idle. If you watch a phone, raise `OFFLINE_AFTER_MISSED_SCANS` (e.g. to 10) to avoid false alarms.
 - **Hostnames** depend on your router or DNS server publishing DHCP hostnames. If the column is blank, name devices in the dashboard.
 - **IPv4 only.** IPv6-only devices aren't discovered.
+- **Presence history** comes from the online/offline events NetWatch records, so it covers the activity-log retention period (`EVENT_RETENTION_DAYS`, default 90 days). Offline times are recorded when NetWatch notices, after the missed-scan threshold.
 - **Large subnets** (bigger than /22) work but scan more slowly; the map shows up to 4,096 addresses.
 
 ---
@@ -328,6 +405,17 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `POST` | `/api/reservations` | Add a reservation: `mac`, `ip`, `description` (requires `LINKSYS_ALLOW_CHANGES`) |
 | `DELETE` | `/api/reservations/{mac}` | Remove a reservation (requires `LINKSYS_ALLOW_CHANGES`) |
 | `POST` | `/api/scan` | Trigger a scan now |
+| `GET` | `/api/devices/{mac}/history?days=` | Presence timeline, availability, IP history, recent events |
+| `GET` | `/api/devices/{mac}/dns` | Pi-hole query stats and top domains for a device |
+| `POST` | `/api/devices/{mac}/wake` | Send a Wake-on-LAN packet |
+| `POST` | `/api/devices/acknowledge` | Mark devices as known: `{"macs": [...]}` |
+| `POST` | `/api/tags/{tag}/alerts` | Set phone/email alerts for every device with a tag |
+| `GET` / `POST` / `PUT` / `DELETE` | `/api/checks[/{id}]` | List, add, edit and delete service checks |
+| `POST` | `/api/checks/{id}/run` | Run a check now |
+| `GET` | `/api/internet` | Internet status, uptime and outages |
+| `GET` / `PUT` | `/api/settings` | Quiet hours and alert settings |
+| `GET` | `/api/export/devices.csv` | Device list as CSV |
+| `GET` | `/api/export/backup` | Full database backup |
 | `POST` | `/api/test-notification` | Send a test alert |
 | `GET` | `/healthz` | Unauthenticated health check (used by Docker) |
 | `GET` | `/netwatch.crt` | The server's public certificate (unauthenticated) |
@@ -348,6 +436,12 @@ netwatch/
 │   ├── tls.py           # Self-signed certificate creation/renewal
 │   ├── healthcheck.py   # Docker health check
 │   ├── router_linksys.py  # Optional Linksys JNAP integration (reservations)
+│   ├── alerts.py        # Central alert path: quiet hours, snooze, held alerts
+│   ├── services.py      # Service checks (HTTP, TCP, ping)
+│   ├── wan.py           # Internet outage tracking
+│   ├── pihole.py        # Optional Pi-hole v6 integration
+│   ├── history.py       # Device presence timeline
+│   ├── wol.py           # Wake-on-LAN
 │   ├── db.py            # SQLite storage
 │   ├── config.py        # Environment-variable configuration
 │   └── static/index.html  # Dashboard (single page, no external assets)

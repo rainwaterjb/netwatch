@@ -5,6 +5,7 @@ import threading
 import time
 
 from . import scanner as default_scanner
+from .alerts import AlertManager
 
 log = logging.getLogger("netwatch.monitor")
 
@@ -42,11 +43,12 @@ def is_watched(dev):
 
 
 class Monitor:
-    def __init__(self, cfg, store, notifier, scanner=default_scanner, router=None):
+    def __init__(self, cfg, store, notifier, scanner=default_scanner, router=None, alerts=None):
         self.cfg = cfg
         self.router = router
         self.store = store
         self.notifier = notifier
+        self.alerts = alerts or AlertManager(store, notifier)
         self.scanner = scanner
         self.iface = None
         self.network = None
@@ -134,16 +136,17 @@ class Monitor:
             vendor = self.scanner.vendor_for(mac)
             self.store.insert_device(
                 mac, ip=ip, hostname=hostname, vendor=vendor, first_seen=now,
-                last_seen=now, online=1, online_since=now, missed_scans=0,
+                last_seen=now, online=1, online_since=now, missed_scans=0, acknowledged=0,
             )
             self.store.add_event("new", mac, ip, f"New device: {hostname or vendor or mac}", ts=now)
             mode = self.cfg.notify_new_devices
             if mode in ("phone", "email", "both"):
-                self.notifier.notify(
+                self.alerts.send(
                     "New device on network",
-                    f"{hostname or vendor or 'Unknown device'} joined at {ip} (MAC {mac}).",
+                    f"{hostname or vendor or 'Unknown device'} joined at {ip} (MAC {mac}).\n"
+                    "Review it in NetWatch under Devices > New.",
                     phone=mode in ("phone", "both"), email=mode in ("email", "both"),
-                    tags=["new"],
+                    tags=["new"], now=now,
                 )
             return
 
@@ -160,12 +163,12 @@ class Monitor:
                                  f"Back online after {fmt_duration(offline_for)}", ts=now)
             if is_watched(dev) and dev["notify_return"]:
                 d = {**dev, "ip": ip}
-                self.notifier.notify(
+                self.alerts.send(
                     f"Back online: {display_name(d, self.router)}",
                     f"{label(d, self.router)} is back on the network after being offline for "
                     f"{fmt_duration(offline_for)}.",
                     phone=bool(dev["notify_phone"]), email=bool(dev["notify_email"]),
-                    tags=["white_check_mark"],
+                    tags=["white_check_mark"], device=d, now=now,
                 )
         self.store.update_device(mac, **updates)
 
@@ -191,12 +194,12 @@ class Monitor:
         self.store.add_event("offline", mac, dev["ip"],
                              f"Dropped off after {fmt_duration(connected_for)} connected", ts=now)
         if is_watched(dev):
-            self.notifier.notify(
+            self.alerts.send(
                 f"Offline: {display_name(dev, self.router)}",
                 f"{label(dev, self.router)} dropped off the network.\n"
                 f"Last seen: {fmt_time(dev['last_seen'])}\n"
                 f"It had been connected for {fmt_duration(connected_for)}.\n"
                 f"MAC: {mac}",
                 phone=bool(dev["notify_phone"]), email=bool(dev["notify_email"]),
-                tags=["warning"],
+                tags=["warning"], device=dev, now=now,
             )

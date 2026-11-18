@@ -96,6 +96,67 @@
   nav::-webkit-scrollbar { display: none; }
   nav button { white-space: nowrap; flex: 0 0 auto; }
 
+  .notice { background: rgba(90,169,255,.1); border: 1px solid rgba(90,169,255,.35); color: var(--text);
+            padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: none; }
+  .notice button { margin-left: 8px; padding: 2px 10px; }
+  .notice div + div { margin-top: 6px; }
+  .sel, .tin, .nin { background: var(--panel); border: 1px solid var(--line); color: var(--text);
+                     border-radius: 6px; padding: 6px 8px; font: inherit; }
+  .nin { width: 90px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 10px; }
+  .grow { flex: 1; }
+  a.btn { display: inline-block; background: var(--panel); color: var(--text); border: 1px solid var(--line);
+          border-radius: 6px; padding: 6px 12px; text-decoration: none; }
+  a.btn:hover { border-color: var(--accent); }
+  .cform { grid-template-columns: 1.4fr 1.2fr 1.4fr 0.7fr 1fr 1fr 1fr; }
+  .chip.new { background: rgba(90,169,255,.18); color: var(--accent); }
+  .chip.crit { background: rgba(240,97,109,.15); color: var(--red); }
+  .chip.snz { background: var(--free); color: var(--muted); }
+  .chip.tag { background: var(--free); color: var(--text); }
+  .chip.chatty { background: rgba(242,184,75,.15); color: var(--amber); }
+  .name { cursor: pointer; display: inline; }
+  .name:hover { color: var(--accent); border-bottom-color: transparent; }
+  .hdr-net-down { color: var(--red) !important; }
+  .spark { display: flex; gap: 1px; align-items: flex-end; height: 18px; }
+  .spark i { width: 4px; height: 100%; background: var(--green); opacity: .8; border-radius: 1px; }
+  .spark i.f { background: var(--red); }
+  .k-service_down, .k-internet_down, .k-chatty { color: var(--red); } .k-service_up, .k-internet_up { color: var(--green); }
+  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end { color: var(--muted); }
+  .bar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--free); }
+  .bar i { display: block; height: 100%; }
+  .bar i.online { background: var(--green); } .bar i.offline { background: var(--red); opacity: .75; } .bar i.unseen { background: var(--free); }
+  .axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 3px; }
+  .hbars { display: flex; gap: 2px; align-items: flex-end; height: 48px; }
+  .hbars i { flex: 1; background: var(--accent); opacity: .7; min-height: 1px; border-radius: 1px; }
+  .hbars i.last { background: var(--amber); opacity: 1; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-start;
+           justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 20; }
+  .modal.hidden { display: none; }
+  .sheet { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; width: 100%; max-width: 760px; padding: 18px 20px; }
+  .sheet h2 { margin: 0; font-size: 18px; }
+  .sheet section { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 14px; }
+  .sheet h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .dt-head { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
+  .dt-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; padding: 3px 10px; }
+  .seg button.on { background: var(--accent); color: #06121f; }
+  .tagedit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tagedit .chip { margin: 0; font-size: 12px; padding: 3px 8px; }
+  .tagedit .chip button { background: none; border: none; padding: 0 0 0 4px; color: var(--muted); min-height: 0; }
+  .tagedit input { width: 140px; }
+  ul.plain { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  ul.plain li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+  ul.plain li:last-child { border-bottom: none; }
+  .domain { overflow-wrap: anywhere; }
+  .stat-row { display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; margin-bottom: 8px; }
+  .stat-row b { display: block; font-size: 18px; }
+  .net-big { font-size: 22px; font-weight: 700; }
+  .net-up { color: var(--green); } .net-down { color: var(--red); }
+  @media (max-width: 1100px) { .cform { grid-template-columns: 1fr 1fr 1fr; } }
+
   /* Touch screens: larger tap targets */
   @media (pointer: coarse) {
     button, nav button { min-height: 40px; }
@@ -171,6 +232,20 @@
     table.events .e-dev { grid-area: dev; }
     table.events .e-ip { grid-area: ip; text-align: right; }
     table.events .e-detail { grid-area: detail; }
+    table.checks tr { grid-template-columns: 14px 1fr auto;
+      grid-template-areas: "dot name up" ". tgt tgt" ". lat spark" ". act act"; }
+    table.checks .k-dot { grid-area: dot; padding-top: 6px; }
+    table.checks .k-name { grid-area: name; font-weight: 600; }
+    table.checks .k-up { grid-area: up; text-align: right; font-size: 13px; }
+    table.checks .k-tgt { grid-area: tgt; color: var(--muted); font-size: 13px; }
+    table.checks .k-lat { grid-area: lat; font-size: 13px; }
+    table.checks .k-spark { grid-area: spark; }
+    table.checks .k-act { grid-area: act; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+    .cform { grid-template-columns: 1fr 1fr; }
+    .modal { padding: 0; }
+    .sheet { border-radius: 0; min-height: 100%; max-width: none; border: none; padding: 14px; }
+    .kv { grid-template-columns: 1fr; gap: 0; } .kv dd { margin-bottom: 6px; }
+    .tagedit input { width: 100%; }
   }
 </style>
 </head>
@@ -182,6 +257,8 @@
     <div>Known <b id="s-known">–</b></div>
     <div>Free IPs <b id="s-free">–</b></div>
     <div>Last scan <b id="s-scan">–</b></div>
+    <div id="s-net" class="hidden">Internet <b>–</b></div>
+    <div id="s-svc" class="hidden">Services <b>–</b></div>
     <div id="s-tls"></div>
   </div>
   <div class="hdr-actions">
@@ -191,11 +268,14 @@
 </header>
 <main>
   <div class="banner" id="err"></div>
+  <div class="notice" id="notice"></div>
   <nav>
     <button data-tab="devices" class="active">Devices</button>
     <button data-tab="ips">IP addresses</button>
+    <button data-tab="svc">Services</button>
     <button data-tab="res" id="nav-res" style="display:none">Reservations</button>
     <button data-tab="events">Activity</button>
+    <button data-tab="set">Settings</button>
   </nav>
 
   <section id="tab-devices">
@@ -203,6 +283,9 @@
       <input type="search" id="filter" placeholder="Filter by name, IP, MAC, vendor…">
       <label class="chk"><input type="checkbox" id="show-offline" checked> Show offline</label>
       <label class="chk"><input type="checkbox" id="only-watched"> Only watched</label>
+      <label class="chk" id="new-wrap"><input type="checkbox" id="only-new"> New <span id="new-count" class="chip">0</span></label>
+      <select id="tag-filter" class="sel" aria-label="Filter by tag"><option value="">All tags</option></select>
+      <button id="btn-ack-all" class="hidden">Mark all new as known</button>
       <select id="sort-sel" class="mobile-only" aria-label="Sort devices">
         <option value="ip">Sort: IP address</option>
         <option value="name">Sort: Name</option>
@@ -263,6 +346,85 @@
     </table>
   </section>
 
+  <section id="tab-svc" class="hidden">
+    <div class="card" id="net-card">
+      <h3>Internet connection</h3>
+      <div id="net-body" class="sub">Internet monitoring is turned off (WAN_CHECK=false).</div>
+    </div>
+    <div class="card">
+      <h3 id="cf-title">Add a service check</h3>
+      <div class="form cform">
+        <label>Name<input type="text" id="cf-name" maxlength="48" placeholder="e.g. Proxmox web UI"></label>
+        <label>Type<select id="cf-kind">
+          <option value="http">Web page (HTTP/HTTPS)</option><option value="tcp">Port (TCP)</option><option value="ping">Ping</option></select></label>
+        <label>Device<select id="cf-device"></select></label>
+        <label id="cf-host-wrap" class="hidden">Host or IP<input type="text" id="cf-host" maxlength="253" placeholder="192.168.1.20 or nas.lan"></label>
+        <label id="cf-port-wrap">Port<input type="text" id="cf-port" inputmode="numeric" maxlength="5" placeholder="443"></label>
+        <label id="cf-path-wrap">Path<input type="text" id="cf-path" maxlength="200" placeholder="/"></label>
+        <label>Check every<select id="cf-interval">
+          <option value="30">30 seconds</option><option value="60" selected>1 minute</option><option value="300">5 minutes</option><option value="900">15 minutes</option></select></label>
+        <label>Down after<select id="cf-fail">
+          <option value="1">1 failure</option><option value="2" selected>2 failures in a row</option><option value="3">3 failures in a row</option><option value="5">5 failures in a row</option></select></label>
+      </div>
+      <div class="opts">
+        <label class="chk" id="cf-https-wrap"><input type="checkbox" id="cf-https"> HTTPS</label>
+        <label class="chk" id="cf-verify-wrap"><input type="checkbox" id="cf-verify" checked> Check certificate <span class="sub">(turn off for self-signed, e.g. Proxmox)</span></label>
+        <label class="chk"><input type="checkbox" id="cf-phone"> Alert by phone</label>
+        <label class="chk"><input type="checkbox" id="cf-email"> Alert by email</label>
+        <span class="grow"></span>
+        <button id="cf-cancel" class="hidden">Cancel</button>
+        <button class="primary" id="cf-save">Add check</button>
+      </div>
+      <div class="note">A web page counts as up if it answers with any status below 500, so a login page still counts. Checks linked to a device follow it if its IP changes.</div>
+    </div>
+    <table class="cards checks">
+      <thead><tr><th></th><th>Service</th><th>Target</th><th>Uptime 24h / 7d</th><th>Response</th><th>Recent</th><th></th></tr></thead>
+      <tbody id="ck-body"></tbody>
+    </table>
+  </section>
+
+  <section id="tab-set" class="hidden">
+    <div class="card">
+      <h3>Quiet hours</h3>
+      <p class="info">During quiet hours, alerts are held and sent as one summary when quiet hours end. Devices marked <b>Critical</b> still alert right away.</p>
+      <div class="opts">
+        <label class="chk"><input type="checkbox" id="st-quiet"> Enable quiet hours</label>
+        <label class="chk">From <input type="time" id="st-qs" class="tin"></label>
+        <label class="chk">to <input type="time" id="st-qe" class="tin"></label>
+        <span id="st-qnow" class="sub"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Alerts</h3>
+      <div class="opts">
+        <label class="chk">Internet outages <select id="st-wan" class="sel"></select></label>
+        <label class="chk pi">Chatty devices (Pi-hole) <select id="st-chatty" class="sel"></select></label>
+      </div>
+      <div class="opts pi">
+        <label class="chk">Chatty means more than <input type="number" id="st-factor" min="2" max="100" step="1" class="nin"> × its usual hourly DNS queries</label>
+        <label class="chk">and at least <input type="number" id="st-min" min="10" step="10" class="nin"> queries in the hour</label>
+      </div>
+      <div class="opts"><span class="grow"></span><button class="primary" id="st-save">Save settings</button></div>
+    </div>
+    <div class="card">
+      <h3>Tags</h3>
+      <p class="info">Add tags to devices from their detail page (click a device's name). Then turn alerts on or off for a whole group here.</p>
+      <div id="tag-list" class="sub">No tags yet.</div>
+    </div>
+    <div class="card">
+      <h3>Export and backup</h3>
+      <div class="opts">
+        <a class="btn" href="/api/export/devices.csv" download>Download device list (CSV)</a>
+        <a class="btn" href="/api/export/backup" download>Download database backup</a>
+      </div>
+      <p class="note">The backup contains your device names, settings, history and service checks. Restore it by stopping NetWatch and copying it over <code>/data/netwatch.db</code> in the container's data volume.</p>
+    </div>
+    <div class="card">
+      <h3>Integrations</h3>
+      <div id="integrations" class="sub"></div>
+    </div>
+  </section>
+
   <section id="tab-events" class="hidden">
     <table class="cards events">
       <thead><tr><th>Time</th><th>Event</th><th>Device</th><th>IP</th><th>Detail</th></tr></thead>
@@ -271,12 +433,18 @@
   </section>
 </main>
 <div id="toast"></div>
+<div id="detail" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dt-name">
+  <div class="sheet" id="detail-sheet"></div>
+</div>
 
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ipNum = ip => (ip || "0.0.0.0").split(".").reduce((a, o) => a * 256 + (+o), 0);
-let state = { status: {}, devices: [], now: Date.now() / 1000, ips: [], events: [], sort: "ip", dir: 1, tab: "devices" };
+let state = { status: {}, devices: [], now: Date.now() / 1000, ips: [], events: [], sort: "ip", dir: 1, tab: "devices",
+              checks: [], internet: null, settings: null, detail: null, detailDays: 1, editingCheck: null };
+const TABS = ["devices", "ips", "svc", "res", "events", "set"];
+const CHANNELS = [["none", "Off"], ["phone", "Phone"], ["email", "Email"], ["both", "Phone + email"]];
 
 function dur(s) {
   s = Math.max(0, Math.floor(s));
@@ -300,6 +468,11 @@ async function refresh() {
     state.status = st; state.devices = dv.devices; state.now = dv.now; state.ips = ips.ips;
     if (state.tab === "events") state.events = (await api("/api/events?limit=300")).events;
     if (state.tab === "res" && st.router && st.router.enabled) state.res = (await api("/api/reservations")).reservations;
+    if (state.tab === "svc") {
+      const [ck, net] = await Promise.all([api("/api/checks"), api("/api/internet")]);
+      state.checks = ck.checks; state.internet = net;
+    }
+    if (state.tab === "set" && !state.settings) state.settings = await api("/api/settings");
     render();
   } catch (e) { showErr("Can't reach NetWatch: " + e.message); }
 }
@@ -324,15 +497,47 @@ function render() {
   if (state.tab === "ips") renderIps();
   if (state.tab === "events") renderEvents();
   if (state.tab === "res") renderRes();
+  if (state.tab === "svc") renderServices();
+  if (state.tab === "set") renderSettings();
   $("#nav-res").style.display = rt.enabled ? "" : "none";
+  renderHeaderExtras();
+}
+
+function renderHeaderExtras() {
+  const st = state.status, net = st.internet || {};
+  const n = $("#s-net");
+  n.classList.toggle("hidden", !net.enabled);
+  if (net.enabled) {
+    const down = net.state === "down";
+    n.innerHTML = `Internet <b class="${down ? "hdr-net-down" : ""}">${down ? "DOWN " + dur(st.now - net.outage_since) : net.state === "up" ? "Up" : "…"}</b>`;
+    n.title = net.uptime_7d != null ? `Uptime 24h ${net.uptime_24h}% · 7d ${net.uptime_7d}% · 30d ${net.uptime_30d}%` : "";
+  }
+  const sv = $("#s-svc"), nChecks = st.checks_down;
+  sv.classList.toggle("hidden", !(state.checks.length || nChecks));
+  sv.innerHTML = `Services <b class="${nChecks ? "hdr-net-down" : ""}">${nChecks ? nChecks + " down" : "All up"}</b>`;
+  // notices: new devices, held alerts
+  const parts = [];
+  if (st.unacknowledged) parts.push(`<b>${st.unacknowledged}</b> new device${st.unacknowledged === 1 ? "" : "s"} on your network <button id="nt-review">Review</button>`);
+  if (st.held_alerts) parts.push(`${st.quiet_now ? "Quiet hours" : "Held alerts"}: <b>${st.held_alerts}</b> alert${st.held_alerts === 1 ? "" : "s"} will be sent ${st.quiet_now ? "when quiet hours end" : "shortly"}`);
+  const box = $("#notice"); box.innerHTML = parts.map(x => `<div>${x}</div>`).join(""); box.style.display = parts.length ? "block" : "none";
+  const rv = $("#nt-review"); if (rv) rv.onclick = () => { $("#only-new").checked = true; $("#show-offline").checked = true; document.querySelector('nav button[data-tab="devices"]').click(); };
+  $("#new-count").textContent = st.unacknowledged || 0;
+  // tag filter options
+  const tags = [...new Set(state.devices.flatMap(d => d.tags || []))].sort();
+  const sel = $("#tag-filter"), keep = sel.value;
+  sel.innerHTML = `<option value="">All tags</option>` + tags.map(t => `<option value="${esc(t)}">#${esc(t)}</option>`).join("");
+  sel.value = tags.includes(keep) ? keep : ""; sel.classList.toggle("hidden", !tags.length);
 }
 
 function renderDevices() {
   const q = $("#filter").value.toLowerCase(), showOff = $("#show-offline").checked, onlyW = $("#only-watched").checked;
+  const onlyNew = $("#only-new").checked, tag = $("#tag-filter").value;
   const st = state.status, now = state.now;
   let rows = state.devices.filter(d =>
-    (showOff || d.online) && (!onlyW || d.notify_phone || d.notify_email) &&
-    (!q || [d.nickname, d.hostname, d.vendor, d.ip, d.mac].some(v => (v || "").toLowerCase().includes(q))));
+    (showOff || d.online || onlyNew) && (!onlyW || d.notify_phone || d.notify_email) &&
+    (!onlyNew || !d.acknowledged) && (!tag || (d.tags || []).includes(tag)) &&
+    (!q || [d.nickname, d.router_name, d.hostname, d.vendor, d.ip, d.mac, ...(d.tags || [])].some(v => (v || "").toLowerCase().includes(q))));
+  $("#btn-ack-all").classList.toggle("hidden", !(onlyNew && rows.length));
   const key = {
     online: d => -d.online, name: d => devName(d).toLowerCase(), ip: d => ipNum(d.ip), mac: d => d.mac,
     uptime: d => d.online ? now - d.online_since : -(now - d.last_seen), first_seen: d => d.first_seen,
@@ -344,7 +549,7 @@ function renderDevices() {
   $("#dev-body").innerHTML = rows.map(d => `
     <tr class="${d.online ? "" : "off"}">
       <td class="c-dot"><span class="dot ${d.online ? "on" : "off"}" title="${d.online ? "Online" : "Offline"}"></span></td>
-      <td class="c-name"><div class="name" data-mac="${d.mac}" title="Click to rename">${esc(devName(d))}</div>
+      <td class="c-name"><div class="name" data-mac="${d.mac}" title="Details, history, rename, tags">${esc(devName(d))}</div>${badges(d, now)}
           <div class="sub">${esc([(d.nickname || d.router_name) && d.hostname, d.vendor].filter(Boolean).join(" · "))}</div></td>
       <td class="mono c-ip">${esc(d.ip)}${d.reserved_ip ? (d.reserved_ip === d.ip
           ? '<span class="chip" title="DHCP reservation on the router">reserved</span>'
@@ -358,8 +563,9 @@ function renderDevices() {
         ${chk(d, "notify_email", st.email_enabled, "Email", st.email_enabled ? "Email alert" : "Set SMTP_* settings to enable")}
         ${chk(d, "notify_return", !!(d.notify_phone || d.notify_email), "+ when back", "Also alert when it reconnects")}
       </div></td>
-      <td class="c-act">${(st.router || {}).can_change && !d.reserved_ip
-          ? `<button data-reserve="${d.mac}" title="Create a DHCP reservation on the router">Reserve</button> ` : ""}<button class="danger" data-forget="${d.mac}" title="Remove from history">Forget</button></td>
+      <td class="c-act">${!d.acknowledged ? `<button data-ack="${d.mac}" title="Mark as a known device">Known</button> ` : ""}${!d.online
+          ? `<button data-wake="${d.mac}" title="Send a Wake-on-LAN packet">Wake</button> ` : ""}${(st.router || {}).can_change && !d.reserved_ip
+          ? `<button data-reserve="${d.mac}" title="Create a DHCP reservation on the router">Reserve</button> ` : ""}<button data-open="${d.mac}">Details</button></td>
     </tr>`).join("") || `<tr class="empty"><td colspan="8" class="sub">No devices yet. The first scan runs at startup.</td></tr>`;
 }
 
@@ -381,7 +587,7 @@ function renderIps() {
 
 function renderEvents() {
   const byMac = Object.fromEntries(state.devices.map(d => [d.mac, d]));
-  const names = { new: "New device", online: "Online", offline: "Offline", ip_change: "IP changed", reservation: "Reservation" };
+  const names = EVENT_NAMES;
   $("#ev-body").innerHTML = state.events.map(e => `
     <tr><td class="sub e-time">${ts(e.ts)}</td><td class="k-${e.kind} e-kind">${names[e.kind] || e.kind}</td>
         <td class="e-dev">${esc(byMac[e.mac] ? devName(byMac[e.mac]) : e.mac)}</td><td class="mono e-ip">${esc(e.ip)}</td>
@@ -392,13 +598,20 @@ function renderEvents() {
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
   state.tab = b.dataset.tab;
-  ["devices", "ips", "res", "events"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== state.tab));
+  TABS.forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== state.tab));
+  if (state.tab === "set") state.settings = null;
   refresh();
 });
 document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
   const k = th.dataset.sort; state.dir = state.sort === k ? -state.dir : 1; state.sort = k; renderDevices();
 });
-["#filter", "#show-offline", "#only-watched"].forEach(s => $(s).addEventListener("input", renderDevices));
+["#filter", "#show-offline", "#only-watched", "#only-new", "#tag-filter"].forEach(s => $(s).addEventListener("input", renderDevices));
+$("#btn-ack-all").onclick = async () => {
+  const macs = state.devices.filter(d => !d.acknowledged).map(d => d.mac);
+  if (!confirm(`Mark all ${macs.length} new device(s) as known?`)) return;
+  await api("/api/devices/acknowledge", { method: "POST", body: JSON.stringify({ macs }) });
+  $("#only-new").checked = false; toast("All marked as known"); refresh();
+};
 
 $("#dev-body").addEventListener("change", async e => {
   const c = e.target; if (!c.dataset.field) return;
@@ -406,16 +619,12 @@ $("#dev-body").addEventListener("change", async e => {
         toast("Saved"); refresh(); } catch (err) { toast(err.message); c.checked = !c.checked; }
 });
 $("#dev-body").addEventListener("click", async e => {
-  const n = e.target.closest(".name");
-  if (n) {
-    const d = state.devices.find(x => x.mac === n.dataset.mac);
-    const v = prompt(`Name for ${d.mac} (${d.ip}) — leave blank to clear`, d.nickname || "");
-    if (v !== null) { await api(`/api/devices/${d.mac}`, { method: "PATCH", body: JSON.stringify({ nickname: v }) }); refresh(); }
-  }
-  const f = e.target.dataset.forget;
-  if (f && confirm("Forget this device and its alert settings? It will reappear as new if seen again.")) {
-    await api(`/api/devices/${f}`, { method: "DELETE" }); refresh();
-  }
+  const n = e.target.closest(".name, [data-open]");
+  if (n) return openDetail(n.dataset.mac || n.dataset.open);
+  const ack = e.target.dataset.ack;
+  if (ack) { await api("/api/devices/acknowledge", { method: "POST", body: JSON.stringify({ macs: [ack] }) }); toast("Marked as known"); return refresh(); }
+  const w = e.target.dataset.wake;
+  if (w) return wake(w);
 });
 $("#btn-scan").onclick = async () => { await api("/api/scan", { method: "POST" }); toast("Scan started"); setTimeout(refresh, 6000); };
 $("#btn-test").onclick = async () => {
@@ -523,6 +732,316 @@ function errText(e) {
   const m = String(e.message || e).match(/^\d+ (.*)$/s);
   try { return JSON.parse(m[1]).detail; } catch { return String(e.message || e); }
 }
+
+// ---------- Shared helpers ----------
+const EVENT_NAMES = { new: "New device", online: "Online", offline: "Offline", ip_change: "IP changed",
+  reservation: "Reservation", service_down: "Service down", service_up: "Service up", internet_down: "Internet down",
+  internet_up: "Internet back", chatty: "Chatty device", chatty_end: "Chatty ended", wake: "Wake-on-LAN",
+  snooze: "Snooze", suppressed: "Alert skipped" };
+const fmtNum = n => n == null ? "–" : Number(n).toLocaleString();
+const pct = v => v == null ? "–" : `${v}%`;
+function badges(d, now) {
+  const out = [];
+  if (!d.acknowledged) out.push(`<span class="chip new" title="New device: review it and mark it as known">NEW</span>`);
+  if (d.critical) out.push(`<span class="chip crit" title="Critical: alerts ignore quiet hours">critical</span>`);
+  if (d.snooze_until && d.snooze_until > now) out.push(`<span class="chip snz" title="Alerts snoozed until ${esc(ts(d.snooze_until))}">snoozed</span>`);
+  if (d.dns && d.dns.chatty) out.push(`<span class="chip chatty" title="${fmtNum(d.dns.queries_1h)} DNS queries in the last hour (usually ~${fmtNum(d.dns.baseline_per_hour)})">chatty</span>`);
+  (d.tags || []).forEach(t => out.push(`<span class="chip tag">#${esc(t)}</span>`));
+  return out.join("");
+}
+async function wake(mac) {
+  const d = state.devices.find(x => x.mac === mac);
+  if (!confirm(`Send a Wake-on-LAN packet to ${d ? devName(d) : mac}?\n\nThis only works if the device supports Wake-on-LAN and has it turned on.`)) return;
+  try { await api(`/api/devices/${mac}/wake`, { method: "POST" }); toast("Wake packet sent. It can take a minute to come online."); }
+  catch (e) { toast(errText(e)); }
+}
+async function patchDevice(mac, body, msg) {
+  try { await api(`/api/devices/${mac}`, { method: "PATCH", body: JSON.stringify(body) }); if (msg) toast(msg); }
+  catch (e) { toast(errText(e)); throw e; }
+  await refresh(); if (state.detail === mac) openDetail(mac, true);
+}
+
+// ---------- Device detail ----------
+async function openDetail(mac, keepScroll) {
+  const d = state.devices.find(x => x.mac === mac); if (!d) return;
+  state.detail = mac;
+  const modal = $("#detail"), sheet = $("#detail-sheet"), scroll = modal.scrollTop;
+  let h;
+  try { h = await api(`/api/devices/${mac}/history?days=${state.detailDays}`); }
+  catch (e) { return toast(errText(e)); }
+  const st = state.status, now = h.now, rt = st.router || {};
+  const span = h.days * 86400, start = now - span;
+  const bar = h.segments.map(sg => `<i class="${sg.state}" style="width:${(100 * (sg.end - sg.start) / span).toFixed(3)}%"
+      title="${esc(sg.state)}: ${esc(ts(sg.start))} – ${esc(ts(sg.end))} (${dur(sg.end - sg.start)})"></i>`).join("");
+  const axis = h.days === 1 ? ["24h ago", "12h", "now"] : [`${h.days}d ago`, `${Math.round(h.days / 2)}d`, "now"];
+  const snoozed = d.snooze_until && d.snooze_until > now;
+  sheet.innerHTML = `
+    <div class="dt-head">
+      <div><h2 id="dt-name">${esc(devName(d))}</h2>${badges(d, now)}
+        <div class="sub">${d.online ? `Online for ${dur(now - d.online_since)}` : `Offline · last seen ${esc(ts(d.last_seen))}`}</div></div>
+      <button id="dt-close" aria-label="Close">✕</button>
+    </div>
+    <div class="dt-actions">
+      ${!d.acknowledged ? `<button class="primary" id="dt-ack">Mark as known</button>` : ""}
+      <button id="dt-wake">Wake-on-LAN</button>
+      <select id="dt-snooze" class="sel" aria-label="Snooze alerts">
+        <option value="">${snoozed ? "Snoozed until " + esc(new Date(d.snooze_until * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})) : "Snooze alerts…"}</option>
+        <option value="60">1 hour</option><option value="240">4 hours</option><option value="720">12 hours</option>
+        <option value="1440">24 hours</option><option value="10080">1 week</option>${snoozed ? `<option value="0">Stop snoozing</option>` : ""}
+      </select>
+      <label class="chk" title="Critical devices alert even during quiet hours"><input type="checkbox" id="dt-crit" ${d.critical ? "checked" : ""}> Critical</label>
+      ${rt.can_change && !d.reserved_ip ? `<button id="dt-reserve">Reserve IP</button>` : ""}
+      <button id="dt-addcheck">Add service check</button>
+      <span class="grow"></span>
+      <button class="danger" id="dt-forget">Forget</button>
+    </div>
+    <section>
+      <h4>Details</h4>
+      <dl class="kv">
+        <dt>Name</dt><dd><input type="text" id="dt-nick" maxlength="64" value="${esc(d.nickname || "")}" placeholder="${esc(d.router_name || d.hostname || "Give it a name")}" class="sel" style="width:100%;max-width:320px">
+          <button id="dt-nick-save">Save</button></dd>
+        <dt>IP address</dt><dd class="mono">${esc(d.ip)}${d.reserved_ip ? ` <span class="chip">reserved ${esc(d.reserved_ip)}</span>` : ""}</dd>
+        <dt>MAC address</dt><dd class="mono">${esc(d.mac)}</dd>
+        ${d.hostname ? `<dt>Hostname</dt><dd>${esc(d.hostname)}</dd>` : ""}
+        ${d.router_name ? `<dt>Router name</dt><dd>${esc(d.router_name)}</dd>` : ""}
+        <dt>Manufacturer</dt><dd>${esc(d.vendor || "Unknown")}</dd>
+        <dt>First seen</dt><dd>${esc(ts(d.first_seen))}</dd>
+      </dl>
+    </section>
+    <section>
+      <h4>Tags</h4>
+      <div class="tagedit">${(d.tags || []).map(t => `<span class="chip tag">#${esc(t)}<button data-untag="${esc(t)}" aria-label="Remove tag ${esc(t)}">✕</button></span>`).join("")}
+        <input type="text" id="dt-tag" class="sel" maxlength="24" placeholder="Add a tag, e.g. iot" list="dt-tag-list">
+        <datalist id="dt-tag-list">${[...new Set(state.devices.flatMap(x => x.tags || []))].map(t => `<option value="${esc(t)}">`).join("")}</datalist>
+        <button id="dt-tag-add">Add</button></div>
+    </section>
+    <section>
+      <h4>Presence <span class="seg" style="float:right">${[1, 7, 30].map(n => `<button data-days="${n}" class="${h.days === n ? "on" : ""}">${n === 1 ? "24h" : n + "d"}</button>`).join("")}</span></h4>
+      <div class="stat-row"><div>Availability (${h.days === 1 ? "24h" : h.days + "d"})<b>${pct(h.availability)}</b></div>
+        ${h.days !== 7 ? `<div>Availability (7d)<b>${pct(h.availability_7d)}</b></div>` : ""}</div>
+      <div class="bar">${bar}</div><div class="axis">${axis.map(a => `<span>${a}</span>`).join("")}</div>
+      <p class="note">Green = on the network, red = offline, grey = not seen yet. Offline times are recorded when NetWatch notices, after ${st.offline_after} missed scans.</p>
+    </section>
+    ${st.pihole && st.pihole.enabled ? `<section><h4>DNS activity (Pi-hole)</h4><div id="dt-dns" class="sub">Loading…</div></section>` : ""}
+    ${h.checks.length ? `<section><h4>Service checks</h4><ul class="plain">${h.checks.map(c => `<li><span><span class="dot ${c.state === "up" ? "on" : c.state === "down" ? "off" : ""}"></span> ${esc(c.name)}</span>
+        <span class="sub">${esc(c.state)}${c.last_error && c.state !== "up" ? " · " + esc(c.last_error) : ""}</span></li>`).join("")}</ul></section>` : ""}
+    <section><h4>IP address history</h4><ul class="plain">${h.ip_history.map(x => `<li><span class="mono">${esc(x.ip)}</span><span class="sub">since ${esc(ts(x.ts))}</span></li>`).join("") || `<li class="sub">No changes recorded.</li>`}</ul></section>
+    <section><h4>Recent activity</h4><ul class="plain">${h.events.slice(0, 25).map(e => `<li><span class="k-${e.kind}">${esc(EVENT_NAMES[e.kind] || e.kind)}</span>
+        <span class="sub" style="text-align:right">${esc(e.detail || "")}<br>${esc(ts(e.ts))}</span></li>`).join("") || `<li class="sub">No activity yet.</li>`}</ul></section>`;
+  modal.classList.remove("hidden"); document.body.style.overflow = "hidden";
+  if (keepScroll) modal.scrollTop = scroll;
+  if (st.pihole && st.pihole.enabled) loadDns(mac);
+}
+async function loadDns(mac) {
+  const box = $("#dt-dns"); if (!box) return;
+  try {
+    const r = await api(`/api/devices/${mac}/dns`);
+    if (state.detail !== mac || !$("#dt-dns")) return;
+    const s = r.stats;
+    if (!s) { box.textContent = "Pi-hole has no queries from this device's IP in the last 24 hours."; return; }
+    const max = Math.max(1, ...s.hourly);
+    box.innerHTML = `
+      <div class="stat-row"><div>Last 24h<b>${fmtNum(s.queries_24h)}</b></div><div>Last hour<b>${fmtNum(s.queries_1h)}</b></div>
+        <div>Usual per hour<b>${s.baseline_per_hour == null ? "learning…" : fmtNum(s.baseline_per_hour)}</b></div>
+        ${s.chatty ? `<div><span class="chip chatty">chatty</span></div>` : ""}</div>
+      <div class="hbars">${s.hourly.map((v, i) => `<i class="${i === s.hourly.length - 1 ? "last" : ""}" style="height:${(100 * v / max).toFixed(1)}%" title="${i === s.hourly.length - 1 ? "Last hour" : (s.hourly.length - 1 - i) + "h ago"}: ${v}"></i>`).join("")}</div>
+      <div class="axis"><span>24h ago</span><span>last hour</span></div>
+      <h4 style="margin-top:12px">Top domains (24h)</h4>
+      <ul class="plain">${r.domains.map(x => `<li><span class="domain mono">${esc(x.domain)}</span><span class="sub">${fmtNum(x.count)}</span></li>`).join("") || `<li class="sub">No queries found.</li>`}</ul>
+      ${r.errors && r.errors.length ? `<p class="note">${esc(r.errors.join("; "))}</p>` : ""}`;
+  } catch (e) { if ($("#dt-dns")) $("#dt-dns").textContent = errText(e); }
+}
+function closeDetail() { $("#detail").classList.add("hidden"); document.body.style.overflow = ""; state.detail = null; }
+$("#detail").addEventListener("click", async e => {
+  const mac = state.detail; if (!mac) return;
+  if (e.target.id === "detail" || e.target.id === "dt-close") return closeDetail();
+  if (e.target.dataset.days) { state.detailDays = +e.target.dataset.days; return openDetail(mac, true); }
+  if (e.target.id === "dt-ack") { await api("/api/devices/acknowledge", { method: "POST", body: JSON.stringify({ macs: [mac] }) }); toast("Marked as known"); await refresh(); return openDetail(mac, true); }
+  if (e.target.id === "dt-wake") return wake(mac);
+  if (e.target.id === "dt-nick-save") return patchDevice(mac, { nickname: $("#dt-nick").value }, "Name saved");
+  if (e.target.id === "dt-tag-add") return addTag(mac);
+  if (e.target.dataset.untag) { const d = state.devices.find(x => x.mac === mac);
+    return patchDevice(mac, { tags: (d.tags || []).filter(t => t !== e.target.dataset.untag) }); }
+  if (e.target.id === "dt-reserve") { closeDetail(); document.querySelector('nav button[data-tab="res"]').click(); return setTimeout(() => prefill(mac), 400); }
+  if (e.target.id === "dt-addcheck") { closeDetail(); document.querySelector('nav button[data-tab="svc"]').click(); return setTimeout(() => newCheckFor(mac), 300); }
+  if (e.target.id === "dt-forget" && confirm("Forget this device, its history and alert settings? It will reappear as new if seen again.")) {
+    await api(`/api/devices/${mac}`, { method: "DELETE" }); closeDetail(); toast("Device forgotten"); return refresh();
+  }
+});
+$("#detail").addEventListener("change", e => {
+  const mac = state.detail;
+  if (e.target.id === "dt-crit") patchDevice(mac, { critical: e.target.checked }, e.target.checked ? "Critical: alerts ignore quiet hours" : "No longer critical");
+  if (e.target.id === "dt-snooze" && e.target.value !== "") {
+    const m = +e.target.value; patchDevice(mac, { snooze_minutes: m }, m ? `Alerts snoozed for ${m >= 1440 ? m / 1440 + " day(s)" : m / 60 + " hour(s)"}` : "Snooze stopped");
+  }
+});
+$("#detail").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "dt-tag") addTag(state.detail);
+  if (e.key === "Enter" && e.target.id === "dt-nick") $("#dt-nick-save").click(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && state.detail) closeDetail(); });
+function addTag(mac) {
+  const v = $("#dt-tag").value.trim().toLowerCase(); if (!v) return;
+  const d = state.devices.find(x => x.mac === mac);
+  patchDevice(mac, { tags: [...(d.tags || []), v] }, `Tagged #${v}`).catch(() => {});
+}
+
+// ---------- Services ----------
+function renderServices() {
+  const inet = state.internet, st = state.status;
+  if (inet && inet.status.enabled) {
+    const s = inet.status, down = s.state === "down";
+    const outs = inet.outages.slice(0, 15);
+    $("#net-body").innerHTML = `
+      <div class="stat-row">
+        <div>Status<b class="net-big ${down ? "net-down" : "net-up"}">${down ? "Down" : s.state === "up" ? "Up" : "Checking…"}</b>
+          <span class="sub">${down ? "since " + esc(ts(s.outage_since)) : s.latency_ms != null ? s.latency_ms + " ms" : ""}</span></div>
+        <div>Uptime 24h<b>${pct(s.uptime_24h)}</b></div><div>7 days<b>${pct(s.uptime_7d)}</b></div><div>30 days<b>${pct(s.uptime_30d)}</b></div>
+      </div>
+      <h4 class="sub" style="margin:10px 0 4px">Outages (last 30 days)</h4>
+      <ul class="plain">${outs.map(o => `<li><span>${esc(ts(o.start))}${o.end ? "" : " <span class='chip crit'>ongoing</span>"}</span>
+        <span class="sub">${o.end ? dur(o.end - o.start) : dur(st.now - o.start) + " so far"} · ${o.cause === "router" ? "router unreachable" : "internet down (router OK)"}</span></li>`).join("")
+        || `<li class="sub">No outages recorded.</li>`}</ul>`;
+  }
+  // device options for the form
+  const sel = $("#cf-device"), keep = sel.value;
+  sel.innerHTML = state.devices.slice().sort((a, b) => devName(a).localeCompare(devName(b)))
+    .map(d => `<option value="${d.mac}">${esc(devName(d))} — ${esc(d.ip)}</option>`).join("") + `<option value="">Other host…</option>`;
+  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+  syncCheckForm();
+  const can = st.phone_enabled, cae = st.email_enabled;
+  $("#cf-phone").disabled = !can; $("#cf-email").disabled = !cae;
+  $("#ck-body").innerHTML = state.checks.map(c => `
+    <tr class="${c.enabled ? "" : "off"}">
+      <td class="k-dot"><span class="dot ${c.state === "up" ? "on" : c.state === "down" ? "off" : ""}" title="${esc(c.state)}"></span></td>
+      <td class="k-name">${esc(c.name)}${!c.enabled ? ' <span class="chip snz">paused</span>' : ""}${c.notify_phone || c.notify_email ? "" : ' <span class="chip snz" title="No alerts for this check">no alerts</span>'}
+        <div class="sub">${c.state === "down" ? `<span style="color:var(--red)">Down ${dur(state.now - c.since)}</span> · ${esc(c.last_error || "")}`
+          : c.state === "up" ? `Up ${dur(state.now - c.since)}` : "Waiting for first check"}</div></td>
+      <td class="k-tgt mono">${esc(checkTarget(c))}</td>
+      <td class="k-up">${pct(c.uptime_24h)} <span class="sub">/ ${pct(c.uptime_7d)}</span></td>
+      <td class="k-lat">${c.last_latency_ms != null ? c.last_latency_ms + " ms" : "–"}<div class="sub">avg ${c.avg_latency_ms != null ? c.avg_latency_ms + " ms" : "–"}</div></td>
+      <td class="k-spark"><div class="spark" title="Last ${c.recent.length} checks">${c.recent.map(ok => `<i class="${ok ? "" : "f"}"></i>`).join("")}</div></td>
+      <td class="k-act"><button data-run="${c.id}">Check now</button> <button data-edit="${c.id}">Edit</button>
+        <button data-pause="${c.id}">${c.enabled ? "Pause" : "Resume"}</button> <button class="danger" data-del="${c.id}">Delete</button></td>
+    </tr>`).join("") || `<tr class="empty"><td colspan="7" class="sub">No service checks yet. Add one above, for example your Proxmox web UI on port 8006 (HTTPS, certificate check off).</td></tr>`;
+}
+function checkTarget(c) {
+  const host = c.target || (c.mac ? "(device offline / no IP)" : c.host);
+  if (c.kind === "http") return `${c.https ? "https" : "http"}://${host}${c.port ? ":" + c.port : ""}${c.path || "/"}`;
+  if (c.kind === "tcp") return `${host}:${c.port}`;
+  return `ping ${host}`;
+}
+function syncCheckForm() {
+  const kind = $("#cf-kind").value, manual = $("#cf-device").value === "";
+  $("#cf-host-wrap").classList.toggle("hidden", !manual);
+  $("#cf-port-wrap").classList.toggle("hidden", kind === "ping");
+  $("#cf-path-wrap").classList.toggle("hidden", kind !== "http");
+  $("#cf-https-wrap").classList.toggle("hidden", kind !== "http");
+  $("#cf-verify-wrap").classList.toggle("hidden", kind !== "http" || !$("#cf-https").checked);
+}
+["#cf-kind", "#cf-device", "#cf-https"].forEach(s => $(s).addEventListener("change", syncCheckForm));
+function resetCheckForm() {
+  state.editingCheck = null;
+  ["#cf-name", "#cf-host", "#cf-port", "#cf-path"].forEach(s => $(s).value = "");
+  $("#cf-kind").value = "http"; $("#cf-interval").value = "60"; $("#cf-fail").value = "2";
+  $("#cf-https").checked = false; $("#cf-verify").checked = true; $("#cf-phone").checked = false; $("#cf-email").checked = false;
+  $("#cf-title").textContent = "Add a service check"; $("#cf-save").textContent = "Add check"; $("#cf-cancel").classList.add("hidden");
+  syncCheckForm();
+}
+function newCheckFor(mac) {
+  resetCheckForm(); $("#cf-device").value = mac;
+  const d = state.devices.find(x => x.mac === mac); if (d) $("#cf-name").value = devName(d).slice(0, 40);
+  syncCheckForm(); $("#cf-name").focus(); $("#cf-name").scrollIntoView({ block: "center" });
+}
+$("#cf-cancel").onclick = resetCheckForm;
+$("#cf-save").onclick = async () => {
+  const kind = $("#cf-kind").value, mac = $("#cf-device").value;
+  const body = { name: $("#cf-name").value.trim(), kind, mac: mac || null, host: mac ? null : $("#cf-host").value.trim() || null,
+    port: kind === "ping" || !$("#cf-port").value ? null : +$("#cf-port").value, path: kind === "http" ? ($("#cf-path").value.trim() || "/") : null,
+    https: kind === "http" && $("#cf-https").checked, verify_tls: $("#cf-verify").checked,
+    interval: +$("#cf-interval").value, fail_after: +$("#cf-fail").value,
+    notify_phone: $("#cf-phone").checked, notify_email: $("#cf-email").checked,
+    enabled: state.editingCheck ? !!(state.checks.find(c => c.id === state.editingCheck) || {}).enabled : true };
+  if (!body.name) return toast("Give the check a name");
+  try {
+    const id = state.editingCheck;
+    const c = await api(id ? `/api/checks/${id}` : "/api/checks", { method: id ? "PUT" : "POST", body: JSON.stringify(body) });
+    toast(id ? "Check updated" : "Check added. Running it now…");
+    resetCheckForm(); await api(`/api/checks/${c.id}/run`, { method: "POST" }).catch(() => {}); refresh();
+  } catch (e) { toast(errText(e)); }
+};
+$("#ck-body").addEventListener("click", async e => {
+  const t = e.target, id = t.dataset.run || t.dataset.edit || t.dataset.pause || t.dataset.del; if (!id) return;
+  const c = state.checks.find(x => String(x.id) === id); if (!c) return;
+  if (t.dataset.run) {
+    t.disabled = true; t.textContent = "Checking…";
+    try { const r = await api(`/api/checks/${id}/run`, { method: "POST" }); toast(r.result.ok ? `Up · ${r.result.latency_ms} ms` : `Failed: ${r.result.error}`); }
+    catch (err) { toast(errText(err)); }
+    return refresh();
+  }
+  if (t.dataset.edit) {
+    state.editingCheck = c.id;
+    $("#cf-name").value = c.name; $("#cf-kind").value = c.kind; $("#cf-device").value = c.mac || "";
+    $("#cf-host").value = c.host || ""; $("#cf-port").value = c.port || ""; $("#cf-path").value = c.path || "";
+    $("#cf-https").checked = !!c.https; $("#cf-verify").checked = !!c.verify_tls;
+    $("#cf-interval").value = String(c.interval); if (![...$("#cf-interval").options].some(o => o.value === String(c.interval))) $("#cf-interval").insertAdjacentHTML("beforeend", `<option value="${c.interval}">${c.interval} seconds</option>`), $("#cf-interval").value = String(c.interval);
+    $("#cf-fail").value = String(c.fail_after); $("#cf-phone").checked = !!c.notify_phone; $("#cf-email").checked = !!c.notify_email;
+    $("#cf-title").textContent = `Edit "${c.name}"`; $("#cf-save").textContent = "Save changes"; $("#cf-cancel").classList.remove("hidden");
+    syncCheckForm(); return $("#cf-name").scrollIntoView({ block: "center" });
+  }
+  const payload = { name: c.name, kind: c.kind, mac: c.mac, host: c.host, port: c.port, path: c.path, https: !!c.https,
+    verify_tls: !!c.verify_tls, interval: c.interval, timeout: c.timeout, fail_after: c.fail_after,
+    notify_phone: !!c.notify_phone, notify_email: !!c.notify_email, enabled: !c.enabled };
+  if (t.dataset.pause) { await api(`/api/checks/${id}`, { method: "PUT", body: JSON.stringify(payload) }).catch(err => toast(errText(err))); return refresh(); }
+  if (t.dataset.del && confirm(`Delete the check "${c.name}" and its history?`)) { await api(`/api/checks/${id}`, { method: "DELETE" }); toast("Check deleted"); refresh(); }
+});
+
+// ---------- Settings ----------
+function renderSettings() {
+  const S = state.settings; if (!S) return;
+  const st = state.status, v = S.settings;
+  if (!state.settingsDirty) {
+    $("#st-quiet").checked = !!v.quiet_enabled; $("#st-qs").value = v.quiet_start; $("#st-qe").value = v.quiet_end;
+    for (const [id, key] of [["#st-wan", "wan_alerts"], ["#st-chatty", "chatty_alerts"]]) {
+      $(id).innerHTML = CHANNELS.map(([val, label]) => `<option value="${val}">${label}</option>`).join(""); $(id).value = v[key];
+    }
+    $("#st-factor").value = v.chatty_factor; $("#st-min").value = v.chatty_min_per_hour;
+  }
+  $("#st-qnow").textContent = S.quiet_now ? `Quiet hours are on right now${S.held_alerts ? ` · ${S.held_alerts} alert(s) held` : ""}` : "";
+  document.querySelectorAll(".pi").forEach(e => e.style.display = st.pihole && st.pihole.enabled ? "" : "none");
+  // tags
+  const tags = {};
+  state.devices.forEach(d => (d.tags || []).forEach(t => (tags[t] = tags[t] || []).push(d)));
+  const names = Object.keys(tags).sort();
+  $("#tag-list").innerHTML = names.length ? `<ul class="plain">${names.map(t => {
+    const ds = tags[t], ph = ds.filter(d => d.notify_phone).length, em = ds.filter(d => d.notify_email).length;
+    return `<li><span><span class="chip tag">#${esc(t)}</span> <span class="sub">${ds.length} device${ds.length === 1 ? "" : "s"} · alerts: ${ph} phone, ${em} email</span></span>
+      <span><select class="sel" data-tagalert="${esc(t)}" aria-label="Alerts for #${esc(t)}"><option value="">Set alerts for all…</option>
+        ${CHANNELS.map(([val, label]) => `<option value="${val}">${label}</option>`).join("")}</select></span></li>`; }).join("")}</ul>` : "No tags yet.";
+  // integrations
+  const rt = st.router || {}, ph = st.pihole || {}, inet = st.internet || {};
+  const line = (name, on, detail) => `<li><span>${name}</span><span class="sub">${on ? detail : "not configured"}</span></li>`;
+  $("#integrations").innerHTML = `<ul class="plain">
+    ${line("Linksys router", rt.enabled, rt.error ? `<span style="color:var(--red)">${esc(rt.error)}</span>` : `${rt.reservations} reservations · synced ${rt.last_sync ? dur(st.now - rt.last_sync) + " ago" : "pending"}`)}
+    ${line("Pi-hole", ph.enabled, `${esc((ph.servers || []).join(", "))} · ${Object.keys(ph.errors || {}).length ? `<span style="color:var(--red)">${esc(Object.values(ph.errors).join("; "))}</span>` : `synced ${ph.last_sync ? dur(st.now - ph.last_sync) + " ago" : "pending"}`}`)}
+    ${line("Internet monitor", inet.enabled, inet.state === "down" ? "<span style='color:var(--red)'>down</span>" : `${inet.state} · 30-day uptime ${pct(inet.uptime_30d)}`)}
+    ${line("Phone alerts", st.phone_enabled, "configured")}${line("Email alerts", st.email_enabled, "configured")}
+  </ul>`;
+}
+document.querySelectorAll("#tab-set input, #tab-set select:not([data-tagalert])").forEach(el => el.addEventListener("input", () => state.settingsDirty = true));
+$("#st-save").onclick = async () => {
+  const body = { quiet_enabled: $("#st-quiet").checked, quiet_start: $("#st-qs").value || "22:00", quiet_end: $("#st-qe").value || "07:00",
+    wan_alerts: $("#st-wan").value, chatty_alerts: $("#st-chatty").value,
+    chatty_factor: +$("#st-factor").value || 5, chatty_min_per_hour: +$("#st-min").value || 600 };
+  try { state.settings = await api("/api/settings", { method: "PUT", body: JSON.stringify(body) }); state.settingsDirty = false; toast("Settings saved"); renderSettings(); }
+  catch (e) { toast(errText(e)); }
+};
+$("#tag-list").addEventListener("change", async e => {
+  const t = e.target.dataset.tagalert; if (!t || !e.target.value) return;
+  const [phone, email] = [["phone", "both"].includes(e.target.value), ["email", "both"].includes(e.target.value)];
+  try { const r = await api(`/api/tags/${encodeURIComponent(t)}/alerts`, { method: "POST", body: JSON.stringify({ notify_phone: phone, notify_email: email }) });
+        toast(`Alerts updated for ${r.updated} device(s) tagged #${t}`); }
+  catch (err) { toast(errText(err)); }
+  refresh();
+});
 
 // Mobile helpers
 $("#sort-sel").addEventListener("change", e => { state.sort = e.target.value; state.dir = 1; renderDevices(); });
