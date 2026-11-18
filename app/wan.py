@@ -100,6 +100,7 @@ class WanMonitor:
             start = now - self.interval * (self.fails - 1)
             self.store.open_outage(start, cause, detail)
             self.store.add_event("internet_down", None, self.gateway, detail, ts=start)
+            self.alerts.event("internet_down", now=start, detail=detail)
             self.state = "down"
             log.warning("Internet outage started (%s)", detail)
         return False
@@ -112,6 +113,7 @@ class WanMonitor:
         dur = fmt_duration(now - outage["start"])
         what = "Router was unreachable" if outage["cause"] == "router" else "Internet was down"
         self.store.add_event("internet_up", None, self.gateway, f"{what} for {dur}", ts=now)
+        self.alerts.event("internet_up", now=now, outage=outage)
         log.info("Internet back after %s", dur)
         self.state = "up"                          # so the alert isn't held as "internet down"
         phone, email = channels(self.alerts.settings().get("wan_alerts", "phone"))

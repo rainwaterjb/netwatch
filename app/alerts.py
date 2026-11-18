@@ -61,6 +61,7 @@ class AlertManager:
         self.store = store
         self.notifier = notifier
         self.wan_down = lambda: False           # replaced by the WAN monitor
+        self.rules = None                       # alert rules engine (rules.py), if running
         self._stop = threading.Event()
 
     def settings(self):
@@ -87,6 +88,11 @@ class AlertManager:
             return "held"
         self.notifier.notify(title, message, phone=phone, email=email, tags=tags)
         return "sent"
+
+    def event(self, kind, **details):
+        """Tell the alert rules something happened. Never raises."""
+        if self.rules is not None:
+            self.rules.event(kind, **details)
 
     def flush(self, now=None):
         """Send held alerts as a digest once quiet hours are over and the internet is up."""

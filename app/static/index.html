@@ -122,7 +122,7 @@
   .spark i { width: 4px; height: 100%; background: var(--green); opacity: .8; border-radius: 1px; }
   .spark i.f { background: var(--red); }
   .k-service_down, .k-internet_down, .k-chatty { color: var(--red); } .k-service_up, .k-internet_up { color: var(--green); }
-  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end, .k-auth { color: var(--muted); }
+  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end, .k-auth, .k-ack { color: var(--muted); } .k-escalated { color: #a371f7; }
   .bar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--free); }
   .bar i { display: block; height: 100%; }
   .bar i.online { background: var(--green); } .bar i.offline { background: var(--red); opacity: .75; } .bar i.unseen { background: var(--free); }
@@ -366,6 +366,12 @@
     table.acc .acts { justify-content: flex-start; }
     .who { width: 100%; justify-content: space-between; }
   }
+  .rform { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .pill.ok { background: rgba(63,185,80,.15); color: var(--green); }
+  .pill.esc { background: rgba(163,113,247,.18); color: #c4a5ff; }
+  .pill.mute { background: var(--free); color: var(--muted); }
+  #ru-items { background: var(--bg); color: var(--text); }
+  .rule-off { opacity: .55; }
 </style>
 </head>
 <body>
@@ -397,6 +403,7 @@
     <button data-tab="res" id="nav-res" style="display:none">Reservations</button>
     <button data-tab="dns" id="nav-dns" style="display:none">Top domains</button>
     <button data-tab="events">Activity</button>
+    <button data-tab="alr" class="admin-only">Alerts</button>
     <button data-tab="set" class="admin-only">Settings</button>
     <button data-tab="acc" id="nav-acc">Access</button>
   </nav>
@@ -597,6 +604,54 @@
     </div>
   </section>
 
+  <section id="tab-alr" class="hidden">
+    <div class="card">
+      <h3>Open alerts <span class="sub" id="al-open-sub"></span><button class="push" id="al-ackall">Acknowledge all</button></h3>
+      <ul class="attn" id="al-open"></ul>
+    </div>
+    <div class="card">
+      <h3>Alert rules <button class="push primary" id="al-newrule">New rule</button></h3>
+      <p class="info">Rules decide what to tell you about, where, and how fast: for example "if any <b>#iot</b> device is offline for 10 minutes, post to Discord; if nobody acknowledges it in 30 minutes, also send to Telegram". They work alongside the Phone/Email checkboxes on each device.</p>
+      <table class="cards acc"><thead><tr><th>Rule</th><th class="hide-sm">Send to</th><th></th></tr></thead><tbody id="al-rules"></tbody></table>
+      <div id="rule-form" class="hidden" style="margin-top:16px; border-top:1px solid var(--line); padding-top:14px">
+        <h3 id="rf-title" style="margin-bottom:12px">New rule</h3>
+        <div class="form rform">
+          <label>Name<input type="text" id="ru-name" maxlength="60" placeholder="e.g. IoT devices offline"></label>
+          <label>When<select id="ru-event"></select></label>
+          <label id="ru-scope-l">For<select id="ru-target"></select></label>
+          <label id="ru-tag-l" class="hidden">Tag<select id="ru-tag"></select></label>
+          <label>Only if it lasts (minutes)<input type="number" id="ru-delay" min="0" max="1440" value="0"></label>
+        </div>
+        <label id="ru-items-l" class="hidden" style="display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px;margin-top:10px">Choose (Ctrl/Cmd-click for several)
+          <select id="ru-items" multiple size="6" class="sel" style="width:100%"></select></label>
+        <div style="margin-top:12px"><div class="sub" style="margin-bottom:6px">Send to</div><div class="opts" id="ru-ch" style="margin-top:0"></div></div>
+        <div class="opts">
+          <label class="chk"><input type="checkbox" id="ru-resolved"> Also tell me when it recovers</label>
+          <label class="chk"><input type="checkbox" id="ru-quiet"> Send even during quiet hours</label>
+        </div>
+        <div class="opts">
+          <label class="chk">If not acknowledged within <input type="number" id="ru-esc" class="nin" min="0" max="1440" value="0"> minutes (0 = never), also send to:</label>
+        </div>
+        <div class="opts" id="ru-escch" style="margin-top:6px"></div>
+        <div class="opts"><button class="primary" id="ru-save">Save rule</button><button id="ru-cancel">Cancel</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Channels <button class="push" id="al-newch">Add channel</button></h3>
+      <p class="info">Where alerts can go besides the phone and email set in <code>.env</code>. For Home Assistant, use a <b>Webhook</b> channel with an automation's webhook URL. Tokens and passwords are stored on this server and never shown again.</p>
+      <table class="cards acc"><thead><tr><th>Channel</th><th class="hide-sm">Last message</th><th></th></tr></thead><tbody id="al-ch"></tbody></table>
+      <div id="ch-form" class="hidden" style="margin-top:16px; border-top:1px solid var(--line); padding-top:14px">
+        <h3 id="cf2-title" style="margin-bottom:12px">Add channel</h3>
+        <div class="form rform">
+          <label>Name<input type="text" id="ch-name" maxlength="40" placeholder="e.g. Family Discord"></label>
+          <label>Type<select id="ch-kind"></select></label>
+        </div>
+        <div class="form rform" id="ch-fields" style="margin-top:10px"></div>
+        <div class="opts"><button class="primary" id="ch-save">Save channel</button><button id="ch-cancel">Cancel</button></div>
+      </div>
+    </div>
+  </section>
+
   <section id="tab-acc" class="hidden">
     <div class="card">
       <h3>Your account</h3>
@@ -658,7 +713,7 @@ const ipNum = ip => (ip || "0.0.0.0").split(".").reduce((a, o) => a * 256 + (+o)
 let state = { status: {}, devices: [], now: Date.now() / 1000, ips: [], events: [], sort: "ip", dir: 1, tab: "home",
               tl: null, tlAt: 0, tlHours: 24, tlShowAll: false,
               checks: [], internet: null, settings: null, detail: null, detailDays: 1, editingCheck: null };
-const TABS = ["home", "devices", "ips", "svc", "res", "dns", "events", "set", "acc"];
+const TABS = ["home", "devices", "ips", "svc", "res", "dns", "events", "set", "acc", "alr"];
 const CHANNELS = [["none", "Off"], ["phone", "Phone"], ["email", "Email"], ["both", "Phone + email"]];
 
 function dur(s) {
@@ -687,6 +742,7 @@ async function refresh() {
     if (state.tab === "home") await loadHome();
     if (state.tab === "dns" && !state.dns) loadDomains();
     if (state.tab === "acc") await loadAccess();
+    if (state.tab === "alr") await loadAlerts();
     if (state.tab === "res" && st.router && st.router.enabled) state.res = (await api("/api/reservations")).reservations;
     if (state.tab === "svc") {
       const [ck, net] = await Promise.all([api("/api/checks"), api("/api/internet")]);
@@ -716,6 +772,7 @@ function render() {
   if (state.tab === "home") renderHome();
   if (state.tab === "dns") renderDomainDevices();
   if (state.tab === "acc") renderAccess();
+  if (state.tab === "alr") renderAlerts();
   if (state.tab === "devices") renderDevices();
   if (state.tab === "ips") renderIps();
   if (state.tab === "events") renderEvents();
@@ -965,7 +1022,7 @@ function errText(e) {
 const EVENT_NAMES = { new: "New device", online: "Online", offline: "Offline", ip_change: "IP changed",
   reservation: "Reservation", service_down: "Service down", service_up: "Service up", internet_down: "Internet down",
   internet_up: "Internet back", chatty: "Chatty device", chatty_end: "Chatty ended", wake: "Wake-on-LAN",
-  snooze: "Snooze", suppressed: "Alert skipped", auth: "Sign-in" };
+  snooze: "Snooze", suppressed: "Alert skipped", auth: "Sign-in", ack: "Acknowledged", escalated: "Escalated" };
 const fmtNum = n => n == null ? "–" : Number(n).toLocaleString();
 const pct = v => v == null ? "–" : `${v}%`;
 function badges(d, now) {
@@ -1287,9 +1344,10 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 async function loadHome(force) {
   const now = Date.now() / 1000;
   const needTl = force || !state.tl || state.tl.hours !== state.tlHours || now - state.tlAt > 60;
-  const [ck, ev, tl] = await Promise.all([api("/api/checks"), api("/api/events?limit=150"),
-                                          needTl ? api(`/api/timeline?hours=${state.tlHours}`) : null]);
-  state.checks = ck.checks; state.events = ev.events;
+  const [ck, ev, tl, inc] = await Promise.all([api("/api/checks"), api("/api/events?limit=150"),
+                                          needTl ? api(`/api/timeline?hours=${state.tlHours}`) : null,
+                                          api("/api/incidents?open=1&limit=50").catch(() => ({ incidents: [] }))]);
+  state.checks = ck.checks; state.events = ev.events; state.openInc = inc.incidents;
   if (tl) { state.tl = tl; state.tlAt = now; }
 }
 
@@ -1322,6 +1380,10 @@ function renderAttention() {
   const st = state.status, net = st.internet || {}, now = state.now, items = [];
   const item = (tag, cls, title, detail, actions = "") => items.push(
     `<li><span class="pill ${cls}">${tag}</span><div class="a-body"><b>${esc(title)}</b><div class="sub">${esc(detail)}</div></div><div class="a-act">${actions}</div></li>`);
+  for (const i of state.openInc.filter(i => i.state === "sent" && !i.acked_at))
+    items.push(`<li><span class="pill ${i.escalated_at ? "esc" : "bad"}">${i.escalated_at ? "ESCALATED" : "ALERT"}</span><div class="a-body"><b>${esc(i.title)}</b>
+      <div class="sub">${esc(i.rule_name || "")} · sent ${esc(dur(Date.now() / 1000 - i.sent_at))} ago</div></div>
+      <div class="a-act"><button data-ackinc="${+i.id}">Acknowledge</button></div></li>`);
   if (net.enabled && net.state === "down")
     item("DOWN", "bad", "Internet", `No connection for ${dur(st.now - net.outage_since)}. Device alerts are held until it's back.`);
   for (const c of state.checks.filter(c => c.enabled && c.state === "down"))
@@ -1464,6 +1526,7 @@ $("#tab-home").addEventListener("click", async e => {
     if (t.dataset.open) return openDetail(t.dataset.open);
     if (t.dataset.goto) return gotoTab(t.dataset.goto);
     if (t.dataset.domains) { state.domMac = t.dataset.domains; return gotoTab("dns"); }
+    if (t.dataset.ackinc) { t.disabled = true; await api(`/api/incidents/${t.dataset.ackinc}/ack`, { method: "POST" }); toast("Acknowledged"); return refresh(); }
     if ("tlmore" in t.dataset) { state.tlShowAll = true; return renderTimeline(); }
     if ("review" in t.dataset) { $("#only-new").checked = true; $("#show-offline").checked = true; return gotoTab("devices"); }
     if (t.dataset.ack) { await api("/api/devices/acknowledge", { method: "POST", body: JSON.stringify({ macs: [t.dataset.ack] }) }); toast("Marked as known"); return refresh(); }
@@ -1678,6 +1741,167 @@ $("#tab-acc").addEventListener("click", async e => {
     return accAction(() => api(`/api/users/${d.udel}`, { method: "DELETE" }), "Account deleted");
   if (d.trev && confirm(`Revoke the token "${d.tname}"? Anything using it stops working.`))
     return accAction(() => api(`/api/tokens/${d.trev}`, { method: "DELETE" }), "Token revoked");
+});
+
+// ---------- Alert rules, channels and open alerts ----------
+state.al = null; state.openInc = [];
+async function loadAlerts() {
+  const [r, ch, inc] = await Promise.all([api("/api/alert-rules"), api("/api/alert-channels"), api("/api/incidents?limit=60")]);
+  if (!state.checks.length) state.checks = (await api("/api/checks")).checks;
+  state.al = { ...r, channels: ch.channels, kinds: ch.kinds, incidents: inc.incidents };
+}
+const incOpen = i => (i.state === "pending" || i.state === "sent") && !i.resolved_at;
+function incPill(i) {
+  if (i.state === "pending") return i.due ? ['<span class="pill info">WAITING</span>', `sends ${i.due > Date.now() / 1000 ? "in " + dur(i.due - Date.now() / 1000) : "soon"} unless it recovers`] : ['<span class="pill info">WAITING</span>', "sends when the internet is back"];
+  if (i.acked_at) return ['<span class="pill mute">ACKED</span>', `acknowledged by ${esc(i.acked_by)} ${esc(ago(i.acked_at))}`];
+  if (i.escalated_at) return ['<span class="pill esc">ESCALATED</span>', `sent ${esc(ago(i.sent_at))}, escalated ${esc(ago(i.escalated_at))}`];
+  return ['<span class="pill bad">ALERT</span>', `sent ${esc(ago(i.sent_at))}`];
+}
+function targetName(t, chans) {
+  if (t === "phone") return "Phone"; if (t === "email") return "Email";
+  const c = chans.find(c => c.id === t); return c ? c.name : "(removed)";
+}
+function scopeText(r) {
+  const s = r.scope || {};
+  if (s.target === "critical") return "critical devices";
+  if (s.target === "tag") return `devices tagged #${s.tag}`;
+  if (s.target === "devices") return `${s.macs.length} chosen device${s.macs.length === 1 ? "" : "s"}`;
+  if (s.target === "checks") return `${s.checks.length} chosen check${s.checks.length === 1 ? "" : "s"}`;
+  return { device: "any device", check: "any service check" }[(state.al.events[r.event] || {}).applies] || "";
+}
+function renderAlerts() {
+  const A = state.al; if (!A) return;
+  const open = A.incidents.filter(incOpen);
+  $("#al-open-sub").textContent = open.length ? `${open.length} open` : "";
+  $("#al-ackall").classList.toggle("hidden", !open.some(i => i.state === "sent" && !i.acked_at));
+  const closed = A.incidents.filter(i => !incOpen(i)).slice(0, 8);
+  $("#al-open").innerHTML = (open.map(i => { const [pill, sub] = incPill(i);
+      return `<li>${pill}<div class="a-body"><b>${esc(i.title)}</b><div class="sub">${esc(i.rule_name || "rule removed")} · ${sub}</div></div>
+        <div class="a-act">${i.state === "sent" && !i.acked_at ? `<button data-ackinc="${+i.id}">Acknowledge</button>` : ""}</div></li>`; }).join("")
+    || `<li><span class="all-quiet">✓</span><span>No open alerts.</span></li>`) +
+    (closed.length ? `<li><span class="sub">Recent</span></li>` + closed.map(i => `<li><span class="pill ${i.state === "resolved" ? "ok" : "mute"}">${i.state === "resolved" ? "RESOLVED" : "SKIPPED"}</span>
+        <div class="a-body"><span>${esc(i.title)}</span><div class="sub">${esc(i.rule_name || "")} · ${esc(ago(i.created))}${i.result ? " · " + esc(i.result) : ""}</div></div></li>`).join("") : "");
+  const chans = A.channels;
+  $("#al-rules").innerHTML = A.rules.map(r => `<tr class="${r.enabled ? "" : "rule-off"}">
+      <td><b>${esc(r.name)}</b>${r.enabled ? "" : ' <span class="chip snz">off</span>'}<div class="sub">${esc((A.events[r.event] || {}).label || r.event)}${(A.events[r.event] || {}).applies ? " · " + esc(scopeText(r)) : ""}${r.delay_min ? ` · for ${r.delay_min} min` : ""}${r.ignore_quiet ? " · ignores quiet hours" : ""}</div></td>
+      <td class="hide-sm sub">${r.channels.map(t => esc(targetName(t, chans))).join(", ")}${r.notify_resolved ? " (+ recovery)" : ""}${r.escalate_min ? `<br>then after ${r.escalate_min} min: ${r.escalate_channels.map(t => esc(targetName(t, chans))).join(", ")}` : ""}</td>
+      <td><div class="acts"><button data-rtoggle="${+r.id}">${r.enabled ? "Turn off" : "Turn on"}</button><button data-redit="${+r.id}">Edit</button><button class="danger" data-rdel="${+r.id}" data-rname="${esc(r.name)}">Delete</button></div></td></tr>`).join("")
+    || `<tr class="empty"><td colspan="3" class="sub">No rules yet. Your per-device Phone/Email checkboxes still work.</td></tr>`;
+  $("#al-ch").innerHTML = chans.map(c => `<tr class="${c.enabled ? "" : "rule-off"}">
+      <td><b>${esc(c.name)}</b> <span class="sub">${esc((A.kinds[c.kind] || {}).label || c.kind)}</span></td>
+      <td class="hide-sm sub">${c.last_sent ? `${esc(ago(c.last_sent))} · <span style="color:${c.last_result === "ok" ? "var(--green)" : "var(--red)"}">${esc(c.last_result)}</span>` : "never"}</td>
+      <td><div class="acts"><button data-ctest="${+c.id}">Send test</button><button data-cedit="${+c.id}">Edit</button><button class="danger" data-cdel="${+c.id}" data-cname="${esc(c.name)}">Delete</button></div></td></tr>`).join("")
+    || `<tr class="empty"><td colspan="3" class="sub">No channels yet.</td></tr>`;
+}
+// rule editor
+function targetBoxes(box, selected) {
+  const A = state.al, opts = [];
+  if (A.builtin.phone) opts.push(["phone", "Phone (.env)"]);
+  if (A.builtin.email) opts.push(["email", "Email (.env)"]);
+  A.channels.filter(c => c.enabled).forEach(c => opts.push([c.id, c.name]));
+  $(box).innerHTML = opts.map(([v, l]) => `<label class="chk"><input type="checkbox" value="${esc(v)}" ${selected.includes(v) ? "checked" : ""}> ${esc(l)}</label>`).join("")
+    || `<span class="sub">Add a channel below first, or set phone/email in .env.</span>`;
+}
+const boxValues = box => [...document.querySelectorAll(box + " input:checked")].map(i => /^\d+$/.test(i.value) ? +i.value : i.value);
+function syncRuleScope(keep) {
+  const A = state.al, applies = (A.events[$("#ru-event").value] || {}).applies;
+  const opts = applies === "device" ? [["any", "Any device"], ["critical", "Critical devices"], ["tag", "Devices with a tag"], ["devices", "Chosen devices"]]
+             : applies === "check" ? [["any", "Any service check"], ["checks", "Chosen checks"]] : [];
+  $("#ru-scope-l").classList.toggle("hidden", !opts.length);
+  const prev = keep || $("#ru-target").value;
+  $("#ru-target").innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+  if (opts.some(o => o[0] === prev)) $("#ru-target").value = prev;
+  const t = opts.length ? $("#ru-target").value : "";
+  $("#ru-tag-l").classList.toggle("hidden", t !== "tag");
+  $("#ru-items-l").classList.toggle("hidden", t !== "devices" && t !== "checks");
+  if (t === "devices") $("#ru-items").innerHTML = [...state.devices].sort((a, b) => devName(a).localeCompare(devName(b)))
+    .map(d => `<option value="${esc(d.mac)}">${esc(devName(d))} · ${esc(d.ip || "")}</option>`).join("");
+  if (t === "checks") $("#ru-items").innerHTML = state.checks.map(c => `<option value="${+c.id}">${esc(c.name)}</option>`).join("");
+  $("#ru-delay").closest("label").firstChild.textContent = $("#ru-event").value === "internet_down" ? "Only if the outage lasts (minutes)"
+    : $("#ru-event").value === "device_new" ? "Wait before sending (minutes)" : "Only if it lasts (minutes)";
+}
+function openRuleForm(r) {
+  const A = state.al; state.editRule = r ? r.id : null;
+  $("#rf-title").textContent = r ? `Edit rule: ${r.name}` : "New rule";
+  $("#ru-event").innerHTML = Object.entries(A.events).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("");
+  const tags = [...new Set(state.devices.flatMap(d => d.tags || []))].sort();
+  $("#ru-tag").innerHTML = tags.map(t => `<option value="${esc(t)}">#${esc(t)}</option>`).join("") || `<option value="">(no tags yet)</option>`;
+  $("#ru-name").value = r ? r.name : ""; $("#ru-event").value = r ? r.event : "device_offline";
+  $("#ru-delay").value = r ? r.delay_min : 5; $("#ru-esc").value = r ? r.escalate_min : 0;
+  $("#ru-resolved").checked = r ? !!r.notify_resolved : true; $("#ru-quiet").checked = r ? !!r.ignore_quiet : false;
+  syncRuleScope(r ? r.scope.target : "any");
+  if (r && r.scope.tag) $("#ru-tag").value = r.scope.tag;
+  const chosen = r ? (r.scope.macs || r.scope.checks || []).map(String) : [];
+  [...$("#ru-items").options].forEach(o => o.selected = chosen.includes(o.value));
+  targetBoxes("#ru-ch", r ? r.channels : []); targetBoxes("#ru-escch", r ? r.escalate_channels : []);
+  $("#rule-form").classList.remove("hidden"); $("#ru-name").focus();
+}
+function ruleBody() {
+  const t = $("#ru-scope-l").classList.contains("hidden") ? null : $("#ru-target").value;
+  const items = [...$("#ru-items").selectedOptions].map(o => o.value);
+  return { name: $("#ru-name").value.trim(), event: $("#ru-event").value, delay_min: +$("#ru-delay").value || 0,
+    scope: t ? { target: t, tag: $("#ru-tag").value, macs: t === "devices" ? items : undefined, checks: t === "checks" ? items.map(Number) : undefined } : {},
+    channels: boxValues("#ru-ch"), notify_resolved: $("#ru-resolved").checked, ignore_quiet: $("#ru-quiet").checked,
+    escalate_min: +$("#ru-esc").value || 0, escalate_channels: boxValues("#ru-escch") };
+}
+// channel editor
+function renderChFields(c) {
+  const A = state.al, kind = c ? c.kind : $("#ch-kind").value, spec = A.kinds[kind];
+  $("#ch-fields").innerHTML = spec.fields.map(f => {
+    const val = c && f.name in c.config ? c.config[f.name] : "";
+    if (f.type === "bool") return `<label class="chk" style="flex-direction:row;align-items:center"><input type="checkbox" data-cf="${f.name}" ${val ? "checked" : ""}> ${esc(f.label)}</label>`;
+    const set = c && c.secrets_set.includes(f.name);
+    return `<label>${esc(f.label)}${f.required ? "" : " (optional)"}<input data-cf="${f.name}" type="${f.secret ? "password" : f.type === "int" ? "number" : "text"}"
+      autocomplete="off" spellcheck="false" maxlength="500" value="${f.secret ? "" : esc(val)}" placeholder="${set ? "saved: leave blank to keep" : ""}"></label>`;
+  }).join("");
+}
+function openChForm(c) {
+  const A = state.al; state.editCh = c ? c.id : null;
+  $("#cf2-title").textContent = c ? `Edit channel: ${c.name}` : "Add channel";
+  $("#ch-kind").innerHTML = Object.entries(A.kinds).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("");
+  $("#ch-kind").value = c ? c.kind : "discord"; $("#ch-kind").disabled = !!c;
+  $("#ch-name").value = c ? c.name : ""; renderChFields(c);
+  $("#ch-form").classList.remove("hidden"); $("#ch-name").focus();
+}
+function chBody() {
+  const config = {};
+  document.querySelectorAll("#ch-fields [data-cf]").forEach(i => config[i.dataset.cf] = i.type === "checkbox" ? i.checked : i.value.trim());
+  return { name: $("#ch-name").value.trim(), kind: $("#ch-kind").value, config };
+}
+async function alAction(fn, okMsg) {
+  try { const r = await fn(); if (okMsg) toast(typeof okMsg === "function" ? okMsg(r) : okMsg); await loadAlerts(); renderAlerts(); return true; }
+  catch (e) { toast(errText(e)); return false; }
+}
+$("#ru-event").addEventListener("change", () => syncRuleScope());
+$("#ru-target").addEventListener("change", () => syncRuleScope());
+$("#ch-kind").addEventListener("change", () => renderChFields(null));
+$("#tab-alr").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return; const d = b.dataset, A = state.al;
+  if (b.id === "al-newrule") return openRuleForm(null);
+  if (b.id === "ru-cancel") return $("#rule-form").classList.add("hidden");
+  if (b.id === "ru-save") {
+    const id = state.editRule;
+    if (await alAction(() => api(id ? `/api/alert-rules/${id}` : "/api/alert-rules", { method: id ? "PUT" : "POST", body: JSON.stringify(ruleBody()) }), "Rule saved"))
+      $("#rule-form").classList.add("hidden");
+    return;
+  }
+  if (b.id === "al-newch") return openChForm(null);
+  if (b.id === "ch-cancel") return $("#ch-form").classList.add("hidden");
+  if (b.id === "ch-save") {
+    const id = state.editCh;
+    if (await alAction(() => api(id ? `/api/alert-channels/${id}` : "/api/alert-channels", { method: id ? "PUT" : "POST", body: JSON.stringify(chBody()) }), "Channel saved"))
+      $("#ch-form").classList.add("hidden");
+    return;
+  }
+  if (b.id === "al-ackall") return alAction(() => api("/api/incidents/ack-all", { method: "POST" }), r => `${r.acknowledged} acknowledged`);
+  if (d.ackinc) return alAction(() => api(`/api/incidents/${d.ackinc}/ack`, { method: "POST" }), "Acknowledged");
+  if (d.redit) return openRuleForm(A.rules.find(r => r.id === +d.redit));
+  if (d.rtoggle) { const r = A.rules.find(r => r.id === +d.rtoggle);
+    return alAction(() => api(`/api/alert-rules/${r.id}`, { method: "PUT", body: JSON.stringify({ ...r, enabled: !r.enabled }) }), r.enabled ? "Rule turned off" : "Rule turned on"); }
+  if (d.rdel && confirm(`Delete the rule "${d.rname}"?`)) return alAction(() => api(`/api/alert-rules/${d.rdel}`, { method: "DELETE" }), "Rule deleted");
+  if (d.cedit) return openChForm(A.channels.find(c => c.id === +d.cedit));
+  if (d.ctest) { b.disabled = true; await alAction(() => api(`/api/alert-channels/${d.ctest}/test`, { method: "POST" }), r => r.result === "ok" ? "Test message sent" : `Test failed: ${r.result}`); b.disabled = false; return; }
+  if (d.cdel && confirm(`Delete the channel "${d.cname}"?`)) return alAction(() => api(`/api/alert-channels/${d.cdel}`, { method: "DELETE" }), "Channel deleted");
 });
 
 loadMe().then(refresh);

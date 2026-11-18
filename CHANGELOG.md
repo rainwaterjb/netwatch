@@ -4,6 +4,16 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.10.0 (2026-11-18): Alert rules, new channels, escalation and acknowledgement
+- **Alert rules** (new Alerts tab): choose what to be told about (device offline, new device, service down, internet down, chatty device), for which devices or checks (any, critical, a tag, or chosen ones), and **only if it lasts N minutes**. Brief blips send nothing and are noted in the Activity log.
+- **Channels:** Discord, Slack, Telegram, Gotify, ntfy, webhooks (Home Assistant's webhook trigger works out of the box, with optional HMAC signing) and MQTT, alongside phone and email. Each has a Send test button and shows its last result.
+- **Recovery messages**, **escalation** to other channels if an alert isn't acknowledged in time, and **acknowledgement** from the Overview or the Alerts tab. Read-only viewers can acknowledge too.
+- **Bursts are grouped:** four or more alerts for one rule at once go out as a single summary. Failed deliveries are retried with back-off.
+- Quiet hours, snooze and critical devices apply to rules as they do to the checkboxes.
+- `PUBLIC_URL` adds an "Open NetWatch" link to rule alerts.
+- The per-device Phone/Email checkboxes work exactly as before.
+- **Rollback-safe:** new tables only. Older versions ignore rules and channels and keep the checkbox alerts.
+
 ## v1.9.0 (2026-11-18): Single sign-on (Authentik and other OpenID Connect providers)
 - **Sign in with Authentik**, Keycloak, Authelia, Google or any OpenID Connect provider. The sign-in page shows the button when `OIDC_*` is set; password sign-in keeps working alongside it.
 - **Roles from groups:** `OIDC_ADMIN_GROUPS` sign in as admin and `OIDC_VIEWER_GROUPS` as viewer, refreshed at every sign-in. Others are refused unless `OIDC_DEFAULT_ROLE=viewer`. Someone removed from the groups is signed out and their tokens are revoked.

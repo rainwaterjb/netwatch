@@ -112,6 +112,51 @@ CREATE TABLE IF NOT EXISTS api_tokens (
     last_used   REAL,
     revoked     INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS alert_channels (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    kind        TEXT NOT NULL,                        -- discord | slack | telegram | gotify | ntfy | webhook | mqtt
+    config      TEXT NOT NULL DEFAULT '{}',           -- JSON; includes secrets
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    created     REAL,
+    last_sent   REAL,
+    last_result TEXT
+);
+CREATE TABLE IF NOT EXISTS alert_rules (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    name              TEXT NOT NULL,
+    enabled           INTEGER NOT NULL DEFAULT 1,
+    event             TEXT NOT NULL,                  -- device_offline | device_new | service_down | internet_down | chatty
+    scope             TEXT NOT NULL DEFAULT '{}',     -- JSON: which devices / checks
+    delay_min         INTEGER NOT NULL DEFAULT 0,     -- only alert if it lasts this long
+    channels          TEXT NOT NULL DEFAULT '[]',     -- JSON: "phone", "email", channel ids
+    notify_resolved   INTEGER NOT NULL DEFAULT 0,
+    ignore_quiet      INTEGER NOT NULL DEFAULT 0,
+    escalate_min      INTEGER NOT NULL DEFAULT 0,     -- 0 = no escalation
+    escalate_channels TEXT NOT NULL DEFAULT '[]',
+    created           REAL
+);
+CREATE TABLE IF NOT EXISTS alert_incidents (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_id       INTEGER NOT NULL,
+    event         TEXT NOT NULL,
+    subject       TEXT NOT NULL,                      -- device MAC, check:<id> or internet
+    mac           TEXT,
+    title         TEXT NOT NULL,
+    message       TEXT NOT NULL,
+    critical      INTEGER NOT NULL DEFAULT 0,
+    created       REAL NOT NULL,
+    due           REAL,                               -- when to send (NULL = wait for the end of an outage)
+    state         TEXT NOT NULL,                      -- pending | sent | resolved | cancelled
+    attempts      INTEGER NOT NULL DEFAULT 0,
+    sent_at       REAL,
+    acked_at      REAL,
+    acked_by      TEXT,
+    escalated_at  REAL,
+    resolved_at   REAL,
+    result        TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_incidents_open ON alert_incidents(state, subject);
 CREATE TABLE IF NOT EXISTS outages (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     start   REAL NOT NULL,

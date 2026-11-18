@@ -18,7 +18,9 @@ PUBLIC_PATHS = {"/healthz", "/netwatch.crt", "/login", "/api/auth/login", "/api/
 # Read-only accounts may still sign out and change their own password.
 VIEWER_WRITE_PATHS = {"/api/auth/logout", "/api/auth/password"}
 # Only admins may see these, even read-only.
-ADMIN_ONLY_PREFIXES = ("/api/users", "/api/tokens", "/api/export/backup")
+ADMIN_ONLY_PREFIXES = ("/api/users", "/api/tokens", "/api/export/backup", "/api/alert-channels", "/api/alert-rules")
+# ...and acknowledge alerts.
+VIEWER_WRITE_PREFIXES = ("/api/incidents/",)
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -90,6 +92,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return PlainTextResponse("Missing X-NetWatch header", status_code=403)
             # Read-only accounts and tokens can look but not change anything.
             if who["role"] != "admin" and (unsafe and path not in VIEWER_WRITE_PATHS
+                                           and not path.startswith(VIEWER_WRITE_PREFIXES)
                                            or path.startswith(ADMIN_ONLY_PREFIXES)):
                 return JSONResponse({"detail": "Your account is read-only"}, status_code=403)
             # Accounts and tokens are managed by a person who signed in, never by a token.

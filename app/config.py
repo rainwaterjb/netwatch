@@ -83,6 +83,7 @@ class Config:
     web_username: str = "admin"
     web_password: str = ""              # empty = no login (LAN-only use)
     allowed_hosts: list[str] = field(default_factory=list)  # empty = any Host header
+    public_url: str = ""                # link added to alerts, e.g. https://192.168.1.50:8443
 
     # Single sign-on (OpenID Connect: Authentik, Keycloak, Authelia, Google...)
     oidc_issuer: str = ""               # empty = SSO off
@@ -160,6 +161,7 @@ class Config:
             web_username=_env("WEB_USERNAME", "admin"),
             web_password=_env("WEB_PASSWORD"),
             allowed_hosts=[h.strip().lower() for h in _env("ALLOWED_HOSTS").split(",") if h.strip()],
+            public_url=_env("PUBLIC_URL") if _env("PUBLIC_URL").startswith(("http://", "https://")) else "",
             oidc_issuer=_env("OIDC_ISSUER").rstrip("/"),
             oidc_client_id=_env("OIDC_CLIENT_ID"),
             oidc_client_secret=_env("OIDC_CLIENT_SECRET"),

@@ -31,6 +31,8 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **New-device alerts** | Optionally get notified whenever a device the tool has never seen joins your network. |
 | **Activity log** | A timeline of new devices, disconnects, reconnects, and IP address changes. |
 | **Router integration** *(optional)* | Connects to **OPNsense, pfSense, UniFi, OpenWrt or Linksys**: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses your router's device names. Optionally add and remove DHCP reservations from a **Reservations** tab. |
+| **Alert rules** | "If any #iot device is offline for 10 minutes, post to Discord; if nobody acknowledges it in 30 minutes, also send to Telegram." Rules for devices, new devices, service checks, internet outages and chatty devices, with recovery messages, escalation and acknowledgement. |
+| **More alert channels** | Discord, Slack, Telegram, Gotify, ntfy, webhooks (including Home Assistant) and MQTT, alongside phone and email. |
 | **Phone notifications** | Through [ntfy](https://ntfy.sh) (free, open source, can be self-hosted) and/or [Pushover](https://pushover.net). |
 | **Email notifications** | Through any SMTP server (your mail provider, Gmail with an app password, a self-hosted relay, etc.). |
 | **Works on mobile** | The dashboard adapts to phones and tablets: tables become cards, with touch-friendly controls. |
@@ -240,6 +242,39 @@ After changing `.env`, restart with `docker compose up -d`, then click **Send te
 On the **Devices** tab, tick **Phone**, **Email**, or both for any device. Tick **+ when back** to also hear when it reconnects. Click a device's name to rename it. To be told about unknown devices joining, set `NOTIFY_NEW_DEVICES` to `phone`, `email`, or `both`.
 
 ---
+
+## Alert rules and channels
+
+The Phone/Email checkboxes on each device are the simple way to get alerts, and they keep working. **Alert rules** (Alerts tab, admins) add more control:
+
+- **When:** a device goes offline, a new device joins, a service check fails, the internet goes down, or a device gets chatty.
+- **For:** any device, critical devices, devices with a tag, or chosen devices (or any/chosen service checks).
+- **Only if it lasts N minutes.** A device that comes back within that time is treated as a blip: nothing is sent, and the Activity log says so. For internet outages, the alert goes out once the connection is back, if the outage lasted at least that long.
+- **Send to:** phone and email from `.env`, plus any channels you've added. Optionally also send a message when it recovers.
+- **Escalation:** if nobody acknowledges the alert within M minutes, also send it somewhere else.
+- **Quiet hours** hold rule alerts until morning, unless the rule says otherwise or the device is critical. Snoozed devices don't alert.
+
+If four or more alerts for the same rule are due at once (say, a power cut takes ten devices offline), they're sent as **one summary** instead of a flood. If a channel can't be reached, NetWatch retries with increasing gaps (for example, while the internet is down) and gives up after 30 attempts.
+
+**Open alerts** appear under **Needs attention** on the Overview and in the Alerts tab. Anyone signed in, including read-only viewers, can **acknowledge** them, which stops escalation. Admins manage rules and channels.
+
+### Channels
+
+| Type | What you need |
+|---|---|
+| Discord | A channel webhook URL (Server settings → Integrations → Webhooks). `@everyone` in a device name never pings anyone. |
+| Slack | An incoming-webhook URL |
+| Telegram | A bot token from @BotFather and the chat ID |
+| Gotify | Server URL and an application token |
+| ntfy | The topic URL, and an access token if the topic is protected |
+| Webhook / Home Assistant | Any URL that accepts a JSON `POST`. For Home Assistant, make an automation with a **Webhook** trigger and paste its URL. Add a signing secret to get an `X-NetWatch-Signature: sha256=<HMAC>` header. |
+| MQTT | Broker host and port, optional TLS, username and password, and a topic (default `netwatch/alerts`). Messages are JSON. |
+
+Every channel has a **Send test** button and shows whether its last message got through. Tokens, passwords and webhook URLs are stored in NetWatch's database and are never shown again in the browser; leave a secret field blank when editing to keep it. They are included in database backups, so keep those safe.
+
+Set `PUBLIC_URL` (e.g. `https://192.168.1.50:8443`) to add an "Open NetWatch" link to every rule alert.
+
+**Rolling back is safe.** Rules, channels and alerts live in new tables. Older versions ignore them: rule alerts stop, and the per-device checkboxes carry on as before.
 
 ## Alerts: quiet hours, snooze and critical devices
 
@@ -475,6 +510,7 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `WEB_USERNAME` | `admin` | Dashboard login username |
 | `WEB_PASSWORD` | *(empty)* | Built-in admin password. **Strongly recommended.** Needed for sign-in, accounts, API tokens and DNS details. Empty disables login. |
 | `ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames/IPs allowed to reach the dashboard |
+| `PUBLIC_URL` | *(empty)* | NetWatch's address, added as a link to rule alerts |
 | `OIDC_ISSUER` | *(empty)* | Single sign-on provider's issuer URL. Empty turns SSO off. |
 | `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | *(empty)* | Client credentials from the provider |
 | `OIDC_ADMIN_GROUPS` / `OIDC_VIEWER_GROUPS` | *(empty)* | Comma-separated provider groups that sign in as admin / viewer |
@@ -613,6 +649,11 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `POST` | `/api/auth/password` | Change your own password: `current`, `new` |
 | `GET` / `POST` / `PATCH` / `DELETE` | `/api/users[/{id}]` | Manage accounts (admins, signed in; not with a token) |
 | `GET` / `POST` / `DELETE` | `/api/tokens[/{id}]` | Manage API tokens (admins, signed in; not with a token) |
+| `GET` / `POST` / `PUT` / `DELETE` | `/api/alert-rules[/{id}]` | Alert rules (admins) |
+| `GET` / `POST` / `PUT` / `DELETE` | `/api/alert-channels[/{id}]` | Alert channels; secrets are never returned (admins) |
+| `POST` | `/api/alert-channels/{id}/test` | Send a test message |
+| `GET` | `/api/incidents?open=1` | Open and recent rule alerts |
+| `POST` | `/api/incidents/{id}/ack`, `/api/incidents/ack-all` | Acknowledge (any signed-in user) |
 | `GET` | `/api/timeline?hours=6\|24\|168` | Outages, failing checks, device presence and DNS volume for the timeline |
 | `GET` | `/api/dns/top`, `/api/dns/domain?name=` | Network-wide top domains; which devices looked up a domain |
 | `GET` | `/healthz` | Unauthenticated health check (used by Docker) |
@@ -638,6 +679,8 @@ netwatch/
 │   ├── routers/         # Router drivers: OPNsense, pfSense, UniFi, OpenWrt (+ shared base)
 │   ├── router_linksys.py  # Linksys JNAP driver
 │   ├── alerts.py        # Central alert path: quiet hours, snooze, held alerts
+│   ├── rules.py         # Alert rules, delays, grouping, escalation, acknowledgement
+│   ├── alert_channels.py  # Discord, Slack, Telegram, Gotify, ntfy, webhook, MQTT
 │   ├── services.py      # Service checks (HTTP, TCP, ping)
 │   ├── wan.py           # Internet outage tracking
 │   ├── pihole.py        # Optional Pi-hole v6 integration

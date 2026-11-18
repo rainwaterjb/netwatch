@@ -144,6 +144,7 @@ class Monitor:
                 last_seen=now, online=1, online_since=now, missed_scans=0, acknowledged=0,
             )
             self.store.add_event("new", mac, ip, f"New device: {hostname or vendor or mac}", ts=now)
+            self.alerts.event("device_new", now=now, device=self.store.get_device(mac))
             mode = self.cfg.notify_new_devices
             if mode in ("phone", "email", "both"):
                 self.alerts.send(
@@ -166,6 +167,7 @@ class Monitor:
             updates["online_since"] = now
             self.store.add_event("online", mac, ip,
                                  f"Back online after {fmt_duration(offline_for)}", ts=now)
+            self.alerts.event("device_online", now=now, device={**dev, "ip": ip})
             if is_watched(dev) and dev["notify_return"]:
                 d = {**dev, "ip": ip}
                 self.alerts.send(
@@ -218,6 +220,7 @@ class Monitor:
         connected_for = (dev["last_seen"] or now) - (dev["online_since"] or dev["last_seen"] or now)
         self.store.add_event("offline", mac, dev["ip"],
                              f"Dropped off after {fmt_duration(connected_for)} connected", ts=now)
+        self.alerts.event("device_offline", now=now, device={**dev, "online": 0})
         if is_watched(dev):
             self.alerts.send(
                 f"Offline: {display_name(dev, self.router)}",

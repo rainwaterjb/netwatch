@@ -154,6 +154,7 @@ class ServiceChecker:
     def _notify(self, check, dev, title, message, event_kind, detail, now, tags):
         self.store.add_event(event_kind, check.get("mac"), dev["ip"] if dev else check.get("host"),
                              f"{check['name']}: {detail}", ts=now)
+        self.alerts.event(event_kind, now=now, check=check, device=dev, detail=detail)
         if check.get("notify_phone") or check.get("notify_email"):
             self.alerts.send(title, message, phone=bool(check.get("notify_phone")),
                              email=bool(check.get("notify_email")), tags=tags, device=dev, now=now)

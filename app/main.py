@@ -12,7 +12,7 @@ import re
 import sqlite3
 import tempfile
 
-from fastapi import FastAPI, HTTPException, Path, Query, Request
+from fastapi import Body, FastAPI, HTTPException, Path, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
@@ -29,6 +29,8 @@ from .monitor import Monitor, display_name
 from .pihole import PiholeIntegration
 from .services import KINDS as CHECK_KINDS, ServiceChecker
 from .wan import WanMonitor
+from .rules import EVENTS as RULE_EVENTS, RuleEngine, RuleError
+from . import alert_channels
 from .notifier import Notifier
 from .routers import RouterError, create_router
 from .security import SecurityMiddleware
@@ -53,7 +55,9 @@ auth = AuthManager(store, cfg)
 oidc = OIDC(cfg, store, auth)
 for _p in oidc.problems():
     log.warning("Single sign-on: %s", _p)
-BACKGROUND = (monitor, router, alerts, checker, wan, pihole)
+rules = RuleEngine(store, alerts, notifier, router=router, cfg=cfg)
+alerts.rules = rules
+BACKGROUND = (monitor, router, alerts, checker, wan, pihole, rules)
 STATIC = FsPath(__file__).parent / "static"
 
 
@@ -801,6 +805,83 @@ def dns_domain(name: str = Query(..., max_length=253)):
         c["mac"] = d["mac"] if d else None
         c["name"] = display_name(d, router) if d else None
     return {"domain": name, **result}
+
+
+# ---------- Alert rules, channels and open alerts ----------
+def _rule_call(fn, *args):
+    try:
+        return fn(*args)
+    except RuleError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/alert-channels")
+def list_channels():
+    return {"channels": [rules.public_channel(c) for c in rules.channels()], "kinds": alert_channels.describe_kinds()}
+
+
+@app.post("/api/alert-channels")
+def add_channel(body: dict = Body(...)):
+    return _rule_call(rules.save_channel, body)
+
+
+@app.put("/api/alert-channels/{channel_id}")
+def edit_channel(body: dict = Body(...), channel_id: int = Path(ge=1)):
+    return _rule_call(rules.save_channel, body, channel_id)
+
+
+@app.delete("/api/alert-channels/{channel_id}")
+def remove_channel(channel_id: int = Path(ge=1)):
+    _rule_call(rules.delete_channel, channel_id)
+    return {"ok": True}
+
+
+@app.post("/api/alert-channels/{channel_id}/test")
+def test_channel(channel_id: int = Path(ge=1)):
+    return {"result": _rule_call(rules.test_channel, channel_id)}
+
+
+@app.get("/api/alert-rules")
+def list_rules():
+    return {"rules": rules.rules(), "events": {k: {"label": v[0], "applies": v[2]} for k, v in RULE_EVENTS.items()},
+            "builtin": {"phone": notifier.phone_enabled, "email": notifier.email_enabled}}
+
+
+@app.post("/api/alert-rules")
+def add_rule(body: dict = Body(...)):
+    return _rule_call(rules.save_rule, body)
+
+
+@app.put("/api/alert-rules/{rule_id}")
+def edit_rule(body: dict = Body(...), rule_id: int = Path(ge=1)):
+    return _rule_call(rules.save_rule, body, rule_id)
+
+
+@app.delete("/api/alert-rules/{rule_id}")
+def remove_rule(rule_id: int = Path(ge=1)):
+    _rule_call(rules.delete_rule, rule_id)
+    return {"ok": True}
+
+
+@app.get("/api/incidents")
+def list_incidents(open: bool = Query(False), limit: int = Query(100, ge=1, le=500)):
+    return {"incidents": rules.incidents(open_only=open, limit=limit)}
+
+
+@app.post("/api/incidents/{incident_id}/ack")
+def ack_incident(request: Request, incident_id: int = Path(ge=1)):
+    who = _who(request) or {}
+    return _rule_call(rules.ack, incident_id, who.get("username") or "someone")
+
+
+@app.post("/api/incidents/ack-all")
+def ack_all(request: Request):
+    who = (_who(request) or {}).get("username") or "someone"
+    n = 0
+    for inc in rules.incidents(open_only=True, limit=500):
+        if inc["state"] == "sent" and not inc["acked_at"]:
+            rules.ack(inc["id"], who); n += 1
+    return {"acknowledged": n}
 
 
 @app.get("/api/timeline")

@@ -223,6 +223,8 @@ class PiholeIntegration:
                 detail = (f"Unusually many DNS queries: {s['queries_1h']} in the last hour "
                           f"(usually about {s['baseline_per_hour']}/hour)")
                 self.store.add_event("chatty", dev["mac"] if dev else None, ip, detail, ts=now)
+                if dev:
+                    self.alerts.event("chatty", now=now, device=dev, detail=detail)
                 phone, email = channels(settings.get("chatty_alerts", "none"))
                 if (phone or email) and now - self._alerted.get(ip, 0) > CHATTY_REALERT_SECONDS:
                     self._alerted[ip] = now
@@ -231,6 +233,8 @@ class PiholeIntegration:
             elif was and not s["chatty"]:
                 self.store.add_event("chatty_end", dev["mac"] if dev else None, ip,
                                      "DNS query volume back to normal", ts=now)
+                if dev:
+                    self.alerts.event("chatty_end", now=now, device=dev)
 
     def stats_for(self, ip):
         with self.lock:
