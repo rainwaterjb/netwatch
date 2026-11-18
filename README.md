@@ -13,6 +13,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 |---|---|
 | **Overview dashboard** | One screen with the state of everything: internet, devices, services, free addresses and DNS; a **Needs attention** list; a live activity feed that can hide brief blips; the address map; and service checks with trend lines. |
 | **Timeline** | Internet outages, failed service checks, when each device was online, and DNS volume, all lined up on one time axis (6 hours, 24 hours or 7 days), so you can see what happened at the same moment. Filter by tag or show only devices that dropped. |
+| **Accounts and API tokens** | A sign-in page, separate accounts for each person (admin or read-only viewer), and API tokens for tools like Homepage. The built-in admin from `.env` always works. |
 | **Device inventory** | Every device that answers on the LAN, with IP address, MAC address, manufacturer (looked up from the MAC), and hostname (via reverse DNS). Give devices friendly names from the dashboard. |
 | **IP address map** | A grid of the whole subnet showing which addresses are in use, which were last used by a device that's currently offline, and which are free. One click copies the list of free addresses. |
 | **Connection time** | How long each device has been connected since it last joined, plus first-seen and last-seen times. |
@@ -73,7 +74,7 @@ nano .env                    # set SUBNET, WEB_PASSWORD and your notification se
 docker compose up -d --build
 ```
 
-Then open `https://<host-ip>:8443` and log in with `WEB_USERNAME` / `WEB_PASSWORD`. Your browser will warn about the certificate the first time; see [HTTPS](#https) to make that go away. `http://<host-ip>:8080` redirects to the HTTPS address.
+Then open `https://<host-ip>:8443` and sign in with `WEB_USERNAME` / `WEB_PASSWORD`. Your browser will warn about the certificate the first time; see [HTTPS](#https) to make that go away. `http://<host-ip>:8080` redirects to the HTTPS address.
 
 Useful commands:
 
@@ -145,6 +146,37 @@ TLS_KEY_FILE=/certs/privkey.pem
 Mount the folder in `docker-compose.yml` (`- ./certs:/certs:ro`). The key must be readable by the container user (UID 10001). With a trusted certificate, NetWatch also sends an HSTS header so browsers always use HTTPS.
 
 ---
+
+## Accounts and API tokens
+
+With `WEB_PASSWORD` set, the dashboard has a sign-in page. The **built-in admin** (`WEB_USERNAME` / `WEB_PASSWORD` from `.env`) always works, so you can't lock yourself out. Change its password by editing `.env` and restarting; that signs the built-in admin out everywhere.
+
+In the **Access** tab, admins can:
+
+- **Add accounts** for other people, as an **admin** (can change everything) or a **viewer** (can look but not change anything: no scans, alerts, reservations, settings, accounts or backups). Reset a password, disable or delete an account; each of these signs that person out straight away.
+- **Create API tokens** for tools and scripts, as viewer (read-only) or admin, with an expiry. A token is shown once; NetWatch only keeps a hash of it. Tokens can't manage accounts or other tokens, and a token made by an account can never do more than that account.
+
+Everyone can change their own password in the Access tab (the built-in admin's lives in `.env`).
+
+Using a token, for example with Homepage's `customapi` widget:
+
+```yaml
+widget:
+  type: customapi
+  url: https://<netwatch-ip>:8443/api/status
+  headers:
+    Authorization: Bearer nw_...
+```
+
+or with curl: `curl -H "Authorization: Bearer nw_..." https://<netwatch-ip>:8443/api/status`. Basic login (`-u user:password`) keeps working too.
+
+How it's protected:
+- Passwords are hashed with scrypt. Session cookies and tokens are random 256-bit values stored only as hashes, so a copy of the database (or a backup) can't be used to sign in. Backups leave out sessions entirely.
+- Session cookies are `HttpOnly`, `Secure` and `SameSite=Strict`. Changes made with a session also need NetWatch's own request header, which other websites can't send.
+- After 5 wrong passwords for an account, or 10 from one address, sign-in is paused for 15 minutes. Failed and successful sign-ins and account changes appear in the Activity log.
+- Sessions end after a week without use, and after 30 days at most.
+
+**Rolling back is safe.** Accounts need `WEB_PASSWORD` to be set, and older versions (before v1.8.0) simply ignore the accounts and keep asking for `WEB_PASSWORD`. Only the extra accounts and tokens stop working until you upgrade again, so switch Homepage back to Basic login first if you roll back.
 
 ## Setting up notifications
 
@@ -399,7 +431,7 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `TLS_CERT_FILE` / `TLS_KEY_FILE` | *(empty)* | Certificate and key for `TLS=custom` |
 | `TZ` | `UTC` | Time zone used for timestamps in alerts |
 | `WEB_USERNAME` | `admin` | Dashboard login username |
-| `WEB_PASSWORD` | *(empty)* | Dashboard login password. **Strongly recommended.** Empty disables login. |
+| `WEB_PASSWORD` | *(empty)* | Built-in admin password. **Strongly recommended.** Needed for sign-in, accounts, API tokens and DNS details. Empty disables login. |
 | `ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames/IPs allowed to reach the dashboard |
 | `NTFY_URL` / `NTFY_TOKEN` | *(empty)* | ntfy topic URL and optional access token |
 | `PUSHOVER_USER_KEY` / `PUSHOVER_APP_TOKEN` | *(empty)* | Pushover credentials |
@@ -439,7 +471,8 @@ NetWatch is designed to run on a trusted home or lab network. It ships with thes
 
 **Web application**
 - HTTPS by default (TLS 1.2+), with HTTP redirected to HTTPS.
-- Optional HTTP Basic login, with constant-time credential checks.
+- Sign-in page, per-person accounts (admin or read-only viewer) and API tokens; see [Accounts and API tokens](#accounts-and-api-tokens). HTTP Basic login still works for tools.
+- Passwords hashed with scrypt; sessions and tokens stored only as hashes; constant-time credential checks; sign-in attempts rate-limited.
 - Cross-site request protection: state-changing requests from other websites are rejected, using the `Sec-Fetch-Site` and `Origin` headers.
 - Optional `ALLOWED_HOSTS` allow-list to block DNS-rebinding attacks.
 - Strict security headers: Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff`, and `no-referrer`.
@@ -520,6 +553,14 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `GET` | `/api/export/devices.csv` | Device list as CSV |
 | `GET` | `/api/export/backup` | Full database backup |
 | `POST` | `/api/test-notification` | Send a test alert |
+| `POST` | `/api/auth/login` | Sign in: `username`, `password`; sets a session cookie |
+| `POST` | `/api/auth/logout` | Sign out |
+| `GET` | `/api/auth/me` | Who you're signed in as, and your role |
+| `POST` | `/api/auth/password` | Change your own password: `current`, `new` |
+| `GET` / `POST` / `PATCH` / `DELETE` | `/api/users[/{id}]` | Manage accounts (admins, signed in; not with a token) |
+| `GET` / `POST` / `DELETE` | `/api/tokens[/{id}]` | Manage API tokens (admins, signed in; not with a token) |
+| `GET` | `/api/timeline?hours=6\|24\|168` | Outages, failing checks, device presence and DNS volume for the timeline |
+| `GET` | `/api/dns/top`, `/api/dns/domain?name=` | Network-wide top domains; which devices looked up a domain |
 | `GET` | `/healthz` | Unauthenticated health check (used by Docker) |
 | `GET` | `/netwatch.crt` | The server's public certificate (unauthenticated) |
 
@@ -534,7 +575,8 @@ netwatch/
 │   ├── monitor.py       # Scan loop, online/offline logic, alert triggers
 │   ├── scanner.py       # ARP sweeps, probes, hostname and vendor lookup
 │   ├── notifier.py      # ntfy, Pushover and SMTP delivery
-│   ├── security.py      # Login, CSRF/Host checks, security headers
+│   ├── security.py      # Who's asking, roles, CSRF/Host checks, security headers
+│   ├── auth.py          # Accounts, sessions, API tokens, password hashing, sign-in limits
 │   ├── serve.py         # Entry point: HTTPS server + HTTP redirect
 │   ├── tls.py           # Self-signed certificate creation/renewal
 │   ├── healthcheck.py   # Docker health check
@@ -545,10 +587,12 @@ netwatch/
 │   ├── wan.py           # Internet outage tracking
 │   ├── pihole.py        # Optional Pi-hole v6 integration
 │   ├── history.py       # Device presence timeline
+│   ├── timeline.py      # Overview timeline (outages, checks, presence, DNS)
 │   ├── wol.py           # Wake-on-LAN
 │   ├── db.py            # SQLite storage
 │   ├── config.py        # Environment-variable configuration
-│   └── static/index.html  # Dashboard (single page, no external assets)
+│   ├── static/index.html  # Dashboard (single page, no external assets)
+│   └── static/login.html  # Sign-in page
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt     # Fully pinned, audited dependencies

@@ -4,6 +4,15 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.8.0 (2026-11-18): Accounts, read-only users and API tokens
+- **Sign-in page** instead of the browser's login box. Sign out from the header.
+- **Accounts** (new Access tab): give each person their own sign-in, as an **admin** or a read-only **viewer**. Viewers see everything but can't change anything; the dashboard hides the buttons they can't use, and the server refuses the changes either way.
+- **API tokens** for Homepage, scripts and other tools (`Authorization: Bearer nw_...`), read-only or admin, with an expiry. The Access tab shows a ready-to-paste Homepage snippet when you create one.
+- **Change your own password**; admins can reset passwords, disable or delete accounts, and revoke tokens. Each of these takes effect immediately.
+- Security: scrypt password hashing; sessions and tokens stored only as hashes; `HttpOnly`/`Secure`/`SameSite=Strict` cookies plus a required request header for changes; sign-in lockout after repeated wrong passwords; sign-ins and account changes in the Activity log; backups leave out sessions.
+- The built-in admin from `WEB_USERNAME` / `WEB_PASSWORD` keeps working everywhere, including Basic login for tools such as Homepage and curl.
+- **Rollback-safe:** only new tables were added. Accounts require `WEB_PASSWORD`, so older versions keep asking for that password; extra accounts and tokens simply stop working until you upgrade again.
+
 ## v1.7.1 (2026-11-18): Security and layout hardening
 - **DNS details now require a dashboard login.** Top domains, per-device domains and "which devices looked up this domain" are only available when `WEB_PASSWORD` is set, since they show what everyone on the network browses. Query counts and chatty-device alerts still work without a password.
 - The cache of Pi-hole lookups is now capped, so repeated domain lookups can't grow NetWatch's memory use.

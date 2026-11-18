@@ -81,6 +81,37 @@ CREATE TABLE IF NOT EXISTS check_results (
     latency_ms  REAL
 );
 CREATE INDEX IF NOT EXISTS idx_check_results ON check_results(check_id, ts);
+CREATE TABLE IF NOT EXISTS users (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    username       TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash  TEXT NOT NULL,
+    role           TEXT NOT NULL DEFAULT 'viewer',    -- admin | viewer
+    created        REAL,
+    last_login     REAL,
+    disabled       INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    id_hash     TEXT PRIMARY KEY,                     -- SHA-256 of the cookie value
+    user_id     INTEGER NOT NULL,                     -- 0 = built-in admin from .env
+    cred_tag    TEXT NOT NULL,                        -- changes when the password does
+    created     REAL NOT NULL,
+    last_seen   REAL NOT NULL,
+    expires     REAL NOT NULL,
+    ip          TEXT,
+    user_agent  TEXT
+);
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    token_hash  TEXT NOT NULL UNIQUE,                 -- SHA-256 of the token
+    prefix      TEXT NOT NULL,                        -- first characters, to recognise it
+    role        TEXT NOT NULL DEFAULT 'viewer',
+    created_by  INTEGER,
+    created     REAL,
+    expires     REAL,
+    last_used   REAL,
+    revoked     INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS outages (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     start   REAL NOT NULL,

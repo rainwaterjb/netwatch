@@ -9,16 +9,18 @@ from pathlib import Path as FsPath
 import csv
 import io
 import re
+import sqlite3
 import tempfile
 
-from fastapi import FastAPI, HTTPException, Path, Query
-from fastapi.responses import FileResponse, Response
+from fastapi import FastAPI, HTTPException, Path, Query, Request
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
 from . import history as dev_history
 from . import timeline as dash_timeline
 from . import wol
+from .auth import ROLES, AuthError, AuthManager
 from .alerts import CHANNEL_CHOICES, DEFAULT_SETTINGS, AlertManager, in_quiet_hours, validate_time
 from .config import Config
 from .db import Store
@@ -45,6 +47,7 @@ monitor = Monitor(cfg, store, notifier, router=router, alerts=alerts)
 checker = ServiceChecker(store, alerts, router=router)
 wan = WanMonitor(cfg, store, alerts, monitor=monitor)
 pihole = PiholeIntegration(cfg, store, alerts, router=router)
+auth = AuthManager(store, cfg)
 BACKGROUND = (monitor, router, alerts, checker, wan, pihole)
 STATIC = FsPath(__file__).parent / "static"
 
@@ -60,7 +63,7 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="NetWatch", lifespan=lifespan)
-app.add_middleware(SecurityMiddleware, cfg=cfg)
+app.add_middleware(SecurityMiddleware, cfg=cfg, auth=auth)
 
 MAC_PATTERN = r"^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$"
 
@@ -106,6 +109,135 @@ def _tls_status():
 @app.get("/")
 def index():
     return FileResponse(STATIC / "index.html")
+
+
+# ---------- Sign-in, accounts and API tokens ----------
+@app.get("/login")
+def login_page():
+    return FileResponse(STATIC / "login.html")
+
+
+def _who(request: Request):
+    return request.state.principal
+
+
+def _auth_call(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except AuthError as e:
+        raise HTTPException(e.status, str(e))
+
+
+class LoginIn(BaseModel):
+    username: str = Field(max_length=64)
+    password: str = Field(max_length=256)
+
+
+@app.post("/api/auth/login")
+def login(body: LoginIn, request: Request):
+    if not auth.login_required:
+        raise HTTPException(400, "Sign-in isn't set up: set WEB_PASSWORD in .env")
+    ip = request.client.host if request.client else "?"
+    who = _auth_call(auth.check_password, body.username, body.password, ip)
+    raw = auth.create_session(who, ip, request.headers.get("user-agent"))
+    https = request.url.scheme == "https"
+    resp = JSONResponse({"username": who["username"], "role": who["role"]})
+    resp.set_cookie(auth.cookie_name(https), raw, max_age=30 * 86400, path="/",
+                    secure=https, httponly=True, samesite="strict")
+    return resp
+
+
+@app.post("/api/auth/logout")
+def logout(request: Request):
+    who = _who(request)
+    if who and who["kind"] == "session":
+        auth.end_session(who["session_hash"])
+    resp = JSONResponse({"ok": True})
+    for https in (True, False):
+        resp.delete_cookie(auth.cookie_name(https), path="/", secure=https, httponly=True, samesite="strict")
+    return resp
+
+
+@app.get("/api/auth/me")
+def me(request: Request):
+    who = _who(request) or {}
+    return {"username": who.get("username"), "role": who.get("role"), "kind": who.get("kind"),
+            "is_builtin": who.get("user_id") == 0, "can_sign_out": who.get("kind") == "session",
+            "can_change_password": who.get("kind") == "session" and bool(who.get("user_id")),
+            "login_required": auth.login_required, "accounts_enabled": auth.accounts_enabled}
+
+
+class PasswordChange(BaseModel):
+    current: str = Field(max_length=256)
+    new: str = Field(max_length=256)
+
+
+@app.post("/api/auth/password")
+def change_password(body: PasswordChange, request: Request):
+    who = _who(request)
+    if not who or who["kind"] != "session" or not who["user_id"]:
+        raise HTTPException(400, "The built-in admin's password is set in .env (WEB_PASSWORD)")
+    _auth_call(auth.change_own_password, who["user_id"], body.current, body.new, who["session_hash"])
+    return {"ok": True}
+
+
+class UserIn(BaseModel):
+    username: str = Field(max_length=32)
+    password: str = Field(max_length=256)
+    role: str = Field(default="viewer", max_length=10)
+
+
+class UserUpdate(BaseModel):
+    role: str | None = Field(default=None, max_length=10)
+    disabled: bool | None = None
+    password: str | None = Field(default=None, max_length=256)
+
+
+@app.get("/api/users")
+def list_users():
+    return {"users": auth.list_users(), "builtin": cfg.web_username if cfg.web_password else None,
+            "accounts_enabled": auth.accounts_enabled, "roles": ROLES}
+
+
+@app.post("/api/users")
+def add_user(body: UserIn, request: Request):
+    return _auth_call(auth.create_user, body.username, body.password, body.role, _who(request)["username"] or "admin")
+
+
+@app.patch("/api/users/{user_id}")
+def edit_user(body: UserUpdate, request: Request, user_id: int = Path(ge=1)):
+    return _auth_call(auth.update_user, user_id, _who(request)["username"] or "admin", **body.model_dump(exclude_none=True))
+
+
+@app.delete("/api/users/{user_id}")
+def remove_user(request: Request, user_id: int = Path(ge=1)):
+    _auth_call(auth.delete_user, user_id, _who(request)["username"] or "admin")
+    return {"ok": True}
+
+
+class TokenIn(BaseModel):
+    name: str = Field(max_length=40)
+    role: str = Field(default="viewer", max_length=10)
+    expires_days: int | None = Field(default=None, ge=1, le=3650)
+
+
+@app.get("/api/tokens")
+def list_tokens():
+    return {"tokens": auth.list_tokens()}
+
+
+@app.post("/api/tokens")
+def add_token(body: TokenIn, request: Request):
+    who = dict(_who(request))
+    who["username"] = who["username"] or "admin"
+    raw, info = _auth_call(auth.create_token, body.name, body.role, body.expires_days, who)
+    return {"token": raw, **info}
+
+
+@app.delete("/api/tokens/{token_id}")
+def remove_token(request: Request, token_id: int = Path(ge=1)):
+    _auth_call(auth.revoke_token, token_id, _who(request)["username"] or "admin")
+    return {"ok": True}
 
 
 @app.get("/api/status")
@@ -156,7 +288,7 @@ def _change_permission():
         return False, "Router integration is not configured"
     if not router.allow_changes:
         return False, "Set ROUTER_ALLOW_CHANGES=true in .env to manage reservations here"
-    if not cfg.web_password:
+    if not auth.login_required:
         return False, "Set WEB_PASSWORD in .env first: router changes require a dashboard login"
     return True, None
 
@@ -363,7 +495,7 @@ def _need_pihole():
     if not pihole.enabled:
         raise HTTPException(404, "Pi-hole integration is not configured")
     # DNS lookups reveal what everyone in the house browses: never show them on an open dashboard.
-    if not cfg.web_password:
+    if not auth.login_required:
         raise HTTPException(403, "Set WEB_PASSWORD in .env to see DNS details: they show what each device looks up")
 
 
@@ -427,6 +559,13 @@ def export_backup():
     fd, path = tempfile.mkstemp(prefix="netwatch-backup-", suffix=".db")
     os.close(fd)
     store.backup_to(path)
+    b = sqlite3.connect(path)                 # sign-in sessions don't belong in a backup
+    try:
+        b.execute("DELETE FROM sessions")
+        b.commit()
+        b.execute("VACUUM")
+    finally:
+        b.close()
     return FileResponse(path, media_type="application/octet-stream",
                         filename=time.strftime("netwatch-backup-%Y%m%d-%H%M.db"),
                         background=BackgroundTask(os.remove, path))

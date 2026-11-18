@@ -1,18 +1,23 @@
 """HTTP security layer: optional login, cross-site request blocking, Host
 header allow-list, and browser security headers."""
-import base64
-import binascii
 import logging
-import secrets
 from urllib.parse import urlsplit
 
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import PlainTextResponse, Response
+from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse
+
+from .auth import OPEN, AuthError
 
 log = logging.getLogger("netwatch.security")
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-PUBLIC_PATHS = {"/healthz", "/netwatch.crt"}   # health check; public certificate
+# Health check, public certificate, and the sign-in page itself.
+PUBLIC_PATHS = {"/healthz", "/netwatch.crt", "/login", "/api/auth/login"}
+# Read-only accounts may still sign out and change their own password.
+VIEWER_WRITE_PATHS = {"/api/auth/logout", "/api/auth/password"}
+# Only admins may see these, even read-only.
+ADMIN_ONLY_PREFIXES = ("/api/users", "/api/tokens", "/api/export/backup")
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -36,9 +41,10 @@ def _host_only(value):
 
 
 class SecurityMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, cfg):
+    def __init__(self, app, cfg, auth):
         super().__init__(app)
         self.cfg = cfg
+        self.auth = auth
         self.allowed_hosts = set(cfg.allowed_hosts)
         if not cfg.web_password:
             log.warning("WEB_PASSWORD is not set: the dashboard has no login. "
@@ -54,7 +60,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # 2. Block cross-site state-changing requests (CSRF). A malicious web
         #    page open in your browser can't toggle alerts or delete devices.
-        if request.method not in SAFE_METHODS:
+        unsafe = request.method not in SAFE_METHODS
+        if unsafe:
             site = request.headers.get("sec-fetch-site")
             origin = request.headers.get("origin")
             if site and site not in ("same-origin", "none"):
@@ -62,10 +69,32 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             if origin and urlsplit(origin).netloc.lower() != request.headers.get("host", "").lower():
                 return PlainTextResponse("Cross-origin request blocked", status_code=403)
 
-        # 3. Optional HTTP Basic login.
-        if self.cfg.web_password and path not in PUBLIC_PATHS and not self._authorized(request):
-            return Response("Login required", status_code=401,
-                            headers={"WWW-Authenticate": 'Basic realm="NetWatch", charset="UTF-8"'})
+        # 3. Who is this? (API token, session cookie or Basic login.)
+        if path in PUBLIC_PATHS:
+            who = None
+        else:
+            ip = request.client.host if request.client else "?"
+            try:
+                who = await run_in_threadpool(self.auth.resolve, request.headers, request.cookies, ip)
+            except AuthError as e:
+                return self._denied(request, path, str(e), e.status)
+            if who is None:
+                if self.auth.login_required:
+                    return self._denied(request, path, "Sign in required", 401)
+                who = OPEN
+            # Cookies are sent automatically by the browser, so state changes made
+            # with a session must also carry NetWatch's own header, which other
+            # sites can't add without a CORS preflight that we never allow.
+            if unsafe and who["kind"] == "session" and request.headers.get("x-netwatch") != "1":
+                return PlainTextResponse("Missing X-NetWatch header", status_code=403)
+            # Read-only accounts and tokens can look but not change anything.
+            if who["role"] != "admin" and (unsafe and path not in VIEWER_WRITE_PATHS
+                                           or path.startswith(ADMIN_ONLY_PREFIXES)):
+                return JSONResponse({"detail": "Your account is read-only"}, status_code=403)
+            # Accounts and tokens are managed by a person who signed in, never by a token.
+            if path.startswith(("/api/users", "/api/tokens")) and who["kind"] == "token":
+                return JSONResponse({"detail": "API tokens can't manage accounts or tokens"}, status_code=403)
+        request.state.principal = who
 
         response = await call_next(request)
         for k, v in SECURITY_HEADERS.items():
@@ -74,23 +103,21 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         # certificate it would stop users from clicking through the warning.
         if self.cfg.tls_mode == "custom" and request.url.scheme == "https":
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
-        if path == "/":
+        if path in ("/", "/login"):
             response.headers["Content-Security-Policy"] = PAGE_CSP
             response.headers["Cache-Control"] = "no-store"
         if path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
         return response
 
-    def _authorized(self, request):
-        header = request.headers.get("authorization", "")
-        scheme, _, encoded = header.partition(" ")
-        if scheme.lower() != "basic" or not encoded:
-            return False
-        try:
-            user, _, password = base64.b64decode(encoded, validate=True).decode("utf-8").partition(":")
-        except (binascii.Error, UnicodeDecodeError):
-            return False
-        # Constant-time comparisons (no timing side channel).
-        ok_user = secrets.compare_digest(user.encode(), self.cfg.web_username.encode())
-        ok_pass = secrets.compare_digest(password.encode(), self.cfg.web_password.encode())
-        return ok_user and ok_pass
+    def _denied(self, request, path, message, status):
+        if path == "/" and request.method == "GET" and status == 401:
+            return RedirectResponse("/login", status_code=303)
+        if status == 429:
+            return JSONResponse({"detail": message}, status_code=429)
+        headers = {}
+        # Tools like curl and Homepage get a Basic login challenge; the dashboard's
+        # own requests (X-NetWatch) don't, so the browser never pops up a dialog.
+        if status == 401 and request.headers.get("x-netwatch") != "1":
+            headers["WWW-Authenticate"] = 'Basic realm="NetWatch", charset="UTF-8"'
+        return JSONResponse({"detail": message}, status_code=status, headers=headers)

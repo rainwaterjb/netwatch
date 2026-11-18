@@ -122,7 +122,7 @@
   .spark i { width: 4px; height: 100%; background: var(--green); opacity: .8; border-radius: 1px; }
   .spark i.f { background: var(--red); }
   .k-service_down, .k-internet_down, .k-chatty { color: var(--red); } .k-service_up, .k-internet_up { color: var(--green); }
-  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end { color: var(--muted); }
+  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end, .k-auth { color: var(--muted); }
   .bar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--free); }
   .bar i { display: block; height: 100%; }
   .bar i.online { background: var(--green); } .bar i.offline { background: var(--red); opacity: .75; } .bar i.unseen { background: var(--free); }
@@ -341,6 +341,31 @@
   table.dom tr.dsub td { background: var(--bg); font-size: 13px; }
   table.dom tr.dsub ul.plain { max-width: 560px; }
   @media (max-width: 760px) { table.dom th:first-child, table.dom td:first-child { display: none; } table.dom .domain { font-size: 12px; } }
+  /* Accounts / read-only */
+  .who { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .who b { color: var(--text); }
+  .role { font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: .6px; padding: 2px 6px; border-radius: 4px;
+          background: var(--free); color: var(--muted); }
+  .role.admin { background: rgba(88,166,255,.15); color: var(--accent); }
+  body.viewer .admin-only, body.viewer [data-ack], body.viewer [data-wake], body.viewer [data-reserve], body.viewer [data-run],
+  body.viewer [data-edit], body.viewer [data-del], body.viewer [data-pause], body.viewer [data-unreserve], body.viewer [data-untag],
+  body.viewer #btn-ack-all, body.viewer #dt-ack, body.viewer #dt-reserve, body.viewer [data-tagalert] { display: none !important; }
+  body.viewer #dev-body input[type=checkbox] { pointer-events: none; opacity: .45; }
+  body.viewer #dt-nick, body.viewer #dt-tag { pointer-events: none; }
+  body.viewer #dt-nick-save, body.viewer #dt-tag-add { display: none !important; }
+  table.acc td { overflow-wrap: anywhere; }
+  table.acc .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .tokbox { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  .tokbox code { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 12px var(--mono);
+                 overflow-wrap: anywhere; flex: 1; min-width: 0; user-select: all; }
+  pre.snip { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: 12px var(--mono);
+             overflow-x: auto; margin: 8px 0 0; white-space: pre; }
+  @media (max-width: 760px) {
+    #acc-add, #acc-tok-card .form, #acc-pw .form { grid-template-columns: 1fr !important; }
+    table.acc tr { grid-template-columns: 1fr auto; }
+    table.acc .acts { justify-content: flex-start; }
+    .who { width: 100%; justify-content: space-between; }
+  }
 </style>
 </head>
 <body>
@@ -356,8 +381,9 @@
     <div id="s-tls"></div>
   </div>
   <div class="hdr-actions">
-    <button id="btn-scan">Scan now</button>
-    <button id="btn-test">Send test alert</button>
+    <button id="btn-scan" class="admin-only">Scan now</button>
+    <button id="btn-test" class="admin-only">Send test alert</button>
+    <span id="who" class="who hidden"></span>
   </div>
 </header>
 <main>
@@ -371,7 +397,8 @@
     <button data-tab="res" id="nav-res" style="display:none">Reservations</button>
     <button data-tab="dns" id="nav-dns" style="display:none">Top domains</button>
     <button data-tab="events">Activity</button>
-    <button data-tab="set">Settings</button>
+    <button data-tab="set" class="admin-only">Settings</button>
+    <button data-tab="acc" id="nav-acc">Access</button>
   </nav>
 
   <section id="tab-home">
@@ -468,7 +495,7 @@
   </section>
 
   <section id="tab-res" class="hidden">
-    <div class="card" id="res-add">
+    <div class="card admin-only" id="res-add">
       <h3>Reserve an IP address</h3>
       <div class="form">
         <label>Device
@@ -496,7 +523,7 @@
       <h3>Internet connection</h3>
       <div id="net-body" class="sub">Internet monitoring is turned off (WAN_CHECK=false).</div>
     </div>
-    <div class="card">
+    <div class="card admin-only">
       <h3 id="cf-title">Add a service check</h3>
       <div class="form cform">
         <label>Name<input type="text" id="cf-name" maxlength="48" placeholder="e.g. Proxmox web UI"></label>
@@ -570,6 +597,44 @@
     </div>
   </section>
 
+  <section id="tab-acc" class="hidden">
+    <div class="card">
+      <h3>Your account</h3>
+      <div id="acc-me" class="sub"></div>
+      <div id="acc-pw" class="hidden" style="margin-top:12px">
+        <div class="form" style="grid-template-columns: 1fr 1fr auto">
+          <label>Current password<input type="password" id="pw-cur" autocomplete="current-password" maxlength="256"></label>
+          <label>New password (10+ characters)<input type="password" id="pw-new" autocomplete="new-password" maxlength="256"></label>
+          <button class="primary" id="pw-save">Change password</button>
+        </div>
+        <p class="note">Changing your password signs you out on your other devices.</p>
+      </div>
+    </div>
+    <div class="card admin-only" id="acc-users-card">
+      <h3>Accounts</h3>
+      <p class="info" id="acc-users-info">Give each person their own sign-in. <b>Admins</b> can change everything; <b>viewers</b> can look but not change anything. The built-in admin from <code>.env</code> always works, so you can't lock yourself out.</p>
+      <table class="cards acc"><thead><tr><th>Username</th><th>Role</th><th class="hide-sm">Last sign-in</th><th></th></tr></thead><tbody id="acc-users"></tbody></table>
+      <div class="form" id="acc-add" style="grid-template-columns: 1.2fr 1.4fr 0.8fr auto; margin-top:14px">
+        <label>Username<input type="text" id="nu-name" maxlength="32" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. sam"></label>
+        <label>Password (10+ characters)<input type="password" id="nu-pw" maxlength="256" autocomplete="new-password"></label>
+        <label>Role<select id="nu-role"><option value="viewer">Viewer (read-only)</option><option value="admin">Admin</option></select></label>
+        <button class="primary" id="nu-save">Add account</button>
+      </div>
+    </div>
+    <div class="card admin-only" id="acc-tok-card">
+      <h3>API tokens</h3>
+      <p class="info">For tools such as Homepage or scripts. Send it as <code>Authorization: Bearer &lt;token&gt;</code>. A <b>viewer</b> token can only read. Tokens can't manage accounts or other tokens.</p>
+      <div id="tok-new" class="notice"></div>
+      <table class="cards acc"><thead><tr><th>Name</th><th>Role</th><th class="hide-sm">Last used</th><th class="hide-sm">Expires</th><th></th></tr></thead><tbody id="acc-tokens"></tbody></table>
+      <div class="form" style="grid-template-columns: 1.4fr 0.9fr 0.9fr auto; margin-top:14px">
+        <label>Name<input type="text" id="nt-name" maxlength="40" placeholder="e.g. Homepage"></label>
+        <label>Role<select id="nt-role"><option value="viewer">Viewer (read-only)</option><option value="admin">Admin</option></select></label>
+        <label>Expires<select id="nt-exp"><option value="90">In 90 days</option><option value="365" selected>In 1 year</option><option value="30">In 30 days</option><option value="">Never</option></select></label>
+        <button class="primary" id="nt-save">Create token</button>
+      </div>
+    </div>
+  </section>
+
   <section id="tab-events" class="hidden">
     <table class="cards events">
       <thead><tr><th>Time</th><th>Event</th><th>Device</th><th>IP</th><th>Detail</th></tr></thead>
@@ -589,7 +654,7 @@ const ipNum = ip => (ip || "0.0.0.0").split(".").reduce((a, o) => a * 256 + (+o)
 let state = { status: {}, devices: [], now: Date.now() / 1000, ips: [], events: [], sort: "ip", dir: 1, tab: "home",
               tl: null, tlAt: 0, tlHours: 24, tlShowAll: false,
               checks: [], internet: null, settings: null, detail: null, detailDays: 1, editingCheck: null };
-const TABS = ["home", "devices", "ips", "svc", "res", "dns", "events", "set"];
+const TABS = ["home", "devices", "ips", "svc", "res", "dns", "events", "set", "acc"];
 const CHANNELS = [["none", "Off"], ["phone", "Phone"], ["email", "Email"], ["both", "Phone + email"]];
 
 function dur(s) {
@@ -603,7 +668,9 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.style.displa
   clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 4000); }
 
 async function api(path, opts = {}) {
-  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  const r = await fetch(path, { credentials: "same-origin", ...opts,
+                                headers: { "Content-Type": "application/json", "X-NetWatch": "1", ...(opts.headers || {}) } });
+  if (r.status === 401 && state.me && state.me.kind === "session") { location.replace("/login"); throw new Error("401 Signed out"); }
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return r.json();
 }
@@ -615,6 +682,7 @@ async function refresh() {
     if (state.tab === "events") state.events = (await api("/api/events?limit=300")).events;
     if (state.tab === "home") await loadHome();
     if (state.tab === "dns" && !state.dns) loadDomains();
+    if (state.tab === "acc") await loadAccess();
     if (state.tab === "res" && st.router && st.router.enabled) state.res = (await api("/api/reservations")).reservations;
     if (state.tab === "svc") {
       const [ck, net] = await Promise.all([api("/api/checks"), api("/api/internet")]);
@@ -643,6 +711,7 @@ function render() {
   document.querySelectorAll(".rt").forEach(e => e.style.display = rt.enabled && rt.dhcp_first ? "" : "none");
   if (state.tab === "home") renderHome();
   if (state.tab === "dns") renderDomainDevices();
+  if (state.tab === "acc") renderAccess();
   if (state.tab === "devices") renderDevices();
   if (state.tab === "ips") renderIps();
   if (state.tab === "events") renderEvents();
@@ -892,7 +961,7 @@ function errText(e) {
 const EVENT_NAMES = { new: "New device", online: "Online", offline: "Offline", ip_change: "IP changed",
   reservation: "Reservation", service_down: "Service down", service_up: "Service up", internet_down: "Internet down",
   internet_up: "Internet back", chatty: "Chatty device", chatty_end: "Chatty ended", wake: "Wake-on-LAN",
-  snooze: "Snooze", suppressed: "Alert skipped" };
+  snooze: "Snooze", suppressed: "Alert skipped", auth: "Sign-in" };
 const fmtNum = n => n == null ? "–" : Number(n).toLocaleString();
 const pct = v => v == null ? "–" : `${v}%`;
 function badges(d, now) {
@@ -938,17 +1007,17 @@ async function openDetail(mac, keepScroll) {
     </div>
     <div class="dt-actions">
       ${!d.acknowledged ? `<button class="primary" id="dt-ack">Mark as known</button>` : ""}
-      <button id="dt-wake">Wake-on-LAN</button>
-      <select id="dt-snooze" class="sel" aria-label="Snooze alerts">
+      <button id="dt-wake" class="admin-only">Wake-on-LAN</button>
+      <select id="dt-snooze" class="sel admin-only" aria-label="Snooze alerts">
         <option value="">${snoozed ? "Snoozed until " + esc(new Date(d.snooze_until * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})) : "Snooze alerts…"}</option>
         <option value="60">1 hour</option><option value="240">4 hours</option><option value="720">12 hours</option>
         <option value="1440">24 hours</option><option value="10080">1 week</option>${snoozed ? `<option value="0">Stop snoozing</option>` : ""}
       </select>
-      <label class="chk" title="Critical devices alert even during quiet hours"><input type="checkbox" id="dt-crit" ${d.critical ? "checked" : ""}> Critical</label>
+      <label class="chk admin-only" title="Critical devices alert even during quiet hours"><input type="checkbox" id="dt-crit" ${d.critical ? "checked" : ""}> Critical</label>
       ${rt.can_change && !d.reserved_ip ? `<button id="dt-reserve">Reserve IP</button>` : ""}
-      <button id="dt-addcheck">Add service check</button>
+      <button id="dt-addcheck" class="admin-only">Add service check</button>
       <span class="grow"></span>
-      <button class="danger" id="dt-forget">Forget</button>
+      <button class="danger admin-only" id="dt-forget">Forget</button>
     </div>
     <section>
       <h4>Details</h4>
@@ -1485,7 +1554,120 @@ $("#dns-body").addEventListener("click", e => {
 });
 $("#dns-body").addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches("tr.drow")) { e.preventDefault(); e.target.click(); } });
 
-refresh();
+// ---------- Signed-in user, accounts and API tokens ----------
+state.me = null; state.acc = null; state.newToken = null;
+async function loadMe() {
+  try { state.me = await api("/api/auth/me"); } catch { state.me = null; }
+  const me = state.me || {};
+  document.body.classList.toggle("viewer", me.role === "viewer");
+  const w = $("#who");
+  if (me.username) {
+    w.innerHTML = `<span><b>${esc(me.username)}</b> <span class="role ${me.role === "admin" ? "admin" : ""}">${esc(me.role)}</span></span>` +
+      (me.can_sign_out ? `<button id="btn-logout">Sign out</button>` : "");
+    w.classList.remove("hidden");
+  } else w.classList.add("hidden");
+  $("#nav-acc").style.display = me.kind === "open" ? "none" : "";
+}
+async function loadAccess() {
+  if ((state.me || {}).role !== "admin") { state.acc = null; return; }
+  const [u, t] = await Promise.all([api("/api/users"), api("/api/tokens")]);
+  state.acc = { ...u, tokens: t.tokens };
+}
+const when = t => t ? new Date(t * 1000).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" }) : "–";
+const ago = t => t ? dur(Date.now() / 1000 - t) + " ago" : "never";
+function renderAccess() {
+  const me = state.me || {};
+  $("#acc-me").innerHTML = me.username
+    ? `Signed in as <b>${esc(me.username)}</b> <span class="role ${me.role === "admin" ? "admin" : ""}">${esc(me.role)}</span>` +
+      (me.is_builtin ? ` · the built-in admin from <code>.env</code>. Change its password with <code>WEB_PASSWORD</code>.` : "") +
+      (me.kind === "token" ? " · using an API token" : "") + (me.kind === "builtin" ? " · signed in with the browser's login box" : "")
+    : "Not signed in.";
+  $("#acc-pw").classList.toggle("hidden", !me.can_change_password);
+  const A = state.acc;
+  if (!A) return;
+  const noAcc = !A.accounts_enabled;
+  $("#acc-add").classList.toggle("hidden", noAcc);
+  if (noAcc) $("#acc-users-info").innerHTML = "Accounts need <code>WEB_PASSWORD</code> set in <code>.env</code> first. It stays the fallback admin sign-in, so rolling back to an older NetWatch version never leaves the dashboard open.";
+  const builtin = A.builtin ? `<tr><td><b>${esc(A.builtin)}</b> <span class="sub">built-in, from .env</span></td><td><span class="role admin">admin</span></td><td class="hide-sm sub">–</td><td></td></tr>` : "";
+  $("#acc-users").innerHTML = builtin + A.users.map(u => `<tr>
+      <td><b>${esc(u.username)}</b>${u.disabled ? ' <span class="chip snz">disabled</span>' : ""}${u.username === me.username ? ' <span class="sub">(you)</span>' : ""}</td>
+      <td><select class="sel" data-urole="${+u.id}" aria-label="Role for ${esc(u.username)}">${A.roles.map(r => `<option value="${esc(r)}" ${r === u.role ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></td>
+      <td class="hide-sm sub">${esc(ago(u.last_login))}</td>
+      <td><div class="acts"><button data-upw="${+u.id}" data-uname="${esc(u.username)}">Reset password</button>
+        <button data-udis="${+u.id}" data-val="${u.disabled ? 0 : 1}">${u.disabled ? "Enable" : "Disable"}</button>
+        <button class="danger" data-udel="${+u.id}" data-uname="${esc(u.username)}">Delete</button></div></td></tr>`).join("")
+    || (builtin ? "" : `<tr class="empty"><td colspan="4" class="sub">No accounts yet.</td></tr>`);
+  $("#acc-tokens").innerHTML = A.tokens.map(t => `<tr>
+      <td><b>${esc(t.name)}</b> <span class="mono sub">${esc(t.prefix)}…</span></td>
+      <td><span class="role ${t.role === "admin" ? "admin" : ""}">${esc(t.role)}</span></td>
+      <td class="hide-sm sub">${esc(ago(t.last_used))}</td>
+      <td class="hide-sm sub">${t.expires ? esc(when(t.expires)) : "never"}</td>
+      <td><div class="acts"><button class="danger" data-trev="${+t.id}" data-tname="${esc(t.name)}">Revoke</button></div></td></tr>`).join("")
+    || `<tr class="empty"><td colspan="5" class="sub">No API tokens.</td></tr>`;
+  const box = $("#tok-new"), nt = state.newToken;
+  box.style.display = nt ? "block" : "none";
+  if (!nt) box.textContent = "";           // don't leave the secret lying around in the page
+  else box.innerHTML = `<div><b>Copy this token now.</b> It won't be shown again.</div>
+    <div class="tokbox"><code id="tok-val">${esc(nt.token)}</code><button id="tok-copy">Copy</button><button id="tok-done">Done</button></div>
+    <div class="sub">For Homepage, in <code>services.yaml</code>:</div>
+    <pre class="snip">widget:
+  type: customapi
+  url: ${esc(location.origin)}/api/status
+  headers:
+    Authorization: Bearer ${esc(nt.token)}</pre>`;
+}
+async function accAction(fn, okMsg) {
+  try { await fn(); if (okMsg) toast(okMsg); } catch (e) { toast(errText(e)); }
+  await loadAccess().catch(() => {}); renderAccess();
+}
+document.addEventListener("click", async e => {
+  if (e.target.id === "btn-logout") {
+    try { await api("/api/auth/logout", { method: "POST" }); } catch {}
+    location.replace("/login");
+  }
+});
+$("#tab-acc").addEventListener("change", e => {
+  const id = e.target.dataset.urole; if (!id) return;
+  accAction(() => api(`/api/users/${id}`, { method: "PATCH", body: JSON.stringify({ role: e.target.value }) }), "Role updated");
+});
+$("#tab-acc").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const d = b.dataset;
+  if (b.id === "nu-save") {
+    const body = { username: $("#nu-name").value.trim(), password: $("#nu-pw").value, role: $("#nu-role").value };
+    return accAction(async () => { await api("/api/users", { method: "POST", body: JSON.stringify(body) }); $("#nu-name").value = ""; $("#nu-pw").value = ""; },
+                     `Account ${body.username} added`);
+  }
+  if (b.id === "pw-save") {
+    const body = { current: $("#pw-cur").value, new: $("#pw-new").value };
+    return accAction(async () => { await api("/api/auth/password", { method: "POST", body: JSON.stringify(body) }); $("#pw-cur").value = ""; $("#pw-new").value = ""; },
+                     "Password changed. Your other devices were signed out.");
+  }
+  if (b.id === "nt-save") {
+    const exp = $("#nt-exp").value;
+    const body = { name: $("#nt-name").value.trim(), role: $("#nt-role").value, expires_days: exp ? +exp : null };
+    return accAction(async () => { state.newToken = await api("/api/tokens", { method: "POST", body: JSON.stringify(body) }); $("#nt-name").value = ""; });
+  }
+  if (b.id === "tok-copy") {
+    try { await navigator.clipboard.writeText(state.newToken.token); toast("Token copied"); }
+    catch { const r = document.createRange(); r.selectNodeContents($("#tok-val")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Selected: press Ctrl/Cmd+C"); }
+    return;
+  }
+  if (b.id === "tok-done") { state.newToken = null; return renderAccess(); }
+  if (d.upw) {
+    const pw = prompt(`New password for ${d.uname} (10+ characters). They'll be signed out everywhere.`);
+    if (pw) accAction(() => api(`/api/users/${d.upw}`, { method: "PATCH", body: JSON.stringify({ password: pw }) }), "Password reset");
+    return;
+  }
+  if (d.udis) return accAction(() => api(`/api/users/${d.udis}`, { method: "PATCH", body: JSON.stringify({ disabled: d.val === "1" }) }),
+                               d.val === "1" ? "Account disabled and signed out" : "Account enabled");
+  if (d.udel && confirm(`Delete the account ${d.uname}? Their sessions and tokens stop working.`))
+    return accAction(() => api(`/api/users/${d.udel}`, { method: "DELETE" }), "Account deleted");
+  if (d.trev && confirm(`Revoke the token "${d.tname}"? Anything using it stops working.`))
+    return accAction(() => api(`/api/tokens/${d.trev}`, { method: "DELETE" }), "Token revoked");
+});
+
+loadMe().then(refresh);
 setInterval(refresh, 10000);
 </script>
 </body>
