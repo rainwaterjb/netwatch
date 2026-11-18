@@ -74,7 +74,7 @@ Because ARP is a layer-2 protocol, NetWatch must run on the same network (or VLA
 **Requirements:** a Linux host (VM, LXC, or bare metal) connected to the LAN you want to monitor, with Docker and Docker Compose installed.
 
 ```bash
-git clone <this-repo-url> netwatch
+git clone https://github.com/rainwaterjb/netwatch.git
 cd netwatch
 cp .env.example .env
 nano .env                    # set SUBNET, WEB_PASSWORD and your notification settings
