@@ -1,9 +1,13 @@
 # NetWatch
 
-**A lightweight, self-hosted network monitor for your home or lab LAN.**
-NetWatch shows every device on your network, which IP addresses are free, how long each device has been connected, and alerts you on your phone and/or by email when a device you care about drops off.
+[![Latest release](https://img.shields.io/github/v/release/rainwaterjb/netwatch?sort=semver)](https://github.com/rainwaterjb/netwatch/releases/latest)
+[![CI](https://github.com/rainwaterjb/netwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/rainwaterjb/netwatch/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-It runs as a single Docker container. It works well on a small VM or LXC container on Proxmox, or on any Linux host that sits on the network you want to watch.
+**A lightweight, self-hosted network monitor for your home or lab LAN.**
+NetWatch shows every device on your network and what it is, which IP addresses are free, how long each device has been connected, and whether your internet and services are up. It alerts you when something you care about drops off: on your phone (through its own app, ntfy or Pushover), by email, or in Discord, Slack, Telegram, Home Assistant and more.
+
+It runs as a single Docker container. It works well on a small VM or LXC container on Proxmox, or on any Linux host that sits on the network you want to watch. **Latest release: see [Releases](https://github.com/rainwaterjb/netwatch/releases/latest)**, and [what's in each release](#releases-at-a-glance).
 
 ---
 
@@ -47,23 +51,26 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 ## How it works
 
 ```
-┌────────────────────── Docker host on your LAN ──────────────────────┐
-│                                                                     │
-│   Scanner thread ──ARP sweep every N seconds──►  devices on the LAN │
-│        │                                                            │
-│        ▼                                                            │
-│   SQLite (devices + events) ◄──── FastAPI web app ◄── your browser  │
-│        │                                                            │
-│        └── device went offline / came back ──► ntfy / Pushover      │
-│                                               SMTP email            │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────── Docker host on your LAN ─────────────────────────────┐
+│                                                                                  │
+│  ARP sweep every N seconds ───────────────────────►  devices on the LAN          │
+│  DHCP / Bonjour / UPnP listening (what each device is)                           │
+│  Service checks, internet checks ─────────────────►  web pages, ports, internet  │
+│  Router and Pi-hole APIs (optional) ──────────────►  DHCP reservations, DNS      │
+│        │                                                                         │
+│        ▼                                                                         │
+│  SQLite (devices, history, checks, alerts) ◄── FastAPI ◄── browser / NetWatch app│
+│        │                                         └──────── Prometheus (/metrics) │
+│        └─ alerts ─► NetWatch app (push) · ntfy · Pushover · email · Discord      │
+│                     Slack · Telegram · Gotify · webhooks / Home Assistant · MQTT │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 1. **Discovery.** On a fixed interval, NetWatch sends an ARP "who has this IP?" request to every address in your subnet. Anything that answers is online. ARP works even on devices that block ping.
 2. **Identity.** Devices are tracked by **MAC address**, not IP. A device keeps its name, history, and alert settings even if DHCP hands it a new IP.
 3. **Offline detection.** A device is only marked offline after missing several sweeps in a row (configurable). Before alerting on a watched device, NetWatch sends a few extra targeted probes. This avoids false alarms from devices whose Wi-Fi briefly sleeps.
-4. **Enrichment.** Manufacturer names come from the bundled IEEE OUI database, so this works offline. Hostnames come from reverse DNS, which most home routers and Pi-hole/AdGuard set up from DHCP leases.
-5. **Notifications.** Alerts are sent in the background so a slow mail server never delays scanning.
+4. **Enrichment.** Manufacturer names come from the bundled IEEE OUI database, so this works offline. Hostnames come from reverse DNS, which most home routers and Pi-hole/AdGuard set up from DHCP leases. NetWatch also works out what each device is (phone, TV, printer…) from what it announces over DHCP, Bonjour/mDNS and UPnP; see [Device recognition](#device-recognition-and-private-addresses).
+5. **Notifications.** Alerts are sent in the background so a slow mail server never delays scanning. [Alert rules](#alert-rules-and-channels) decide what goes where, and quiet hours, snooze and critical devices apply to everything.
 
 Because ARP is a layer-2 protocol, NetWatch must run on the same network (or VLAN) that it monitors. That's why the container uses host networking.
 
@@ -78,8 +85,10 @@ git clone https://github.com/rainwaterjb/netwatch.git
 cd netwatch
 cp .env.example .env
 nano .env                    # set SUBNET, WEB_PASSWORD and your notification settings
-docker compose up -d --build
+./update.sh                  # builds and starts the latest release
 ```
+
+`./update.sh` checks out the newest **release** (not the development branch), builds the image and starts it. Prefer plain Docker Compose? `git checkout "$(git tag -l 'v*' --sort=-v:refname | head -n1)" && docker compose up -d --build` does the same.
 
 Then open `https://<host-ip>:8443` and sign in with `WEB_USERNAME` / `WEB_PASSWORD`. Your browser will warn about the certificate the first time; see [HTTPS](#https) to make that go away. `http://<host-ip>:8080` redirects to the HTTPS address.
 
@@ -87,23 +96,59 @@ Useful commands:
 
 ```bash
 docker compose logs -f                         # watch scans and alerts
-./update.sh                                    # update to the latest release (see Releases and rollback)
+./update.sh                                    # update to the latest release (see Updating)
 docker cp netwatch:/data/netwatch.db ./backup.db      # back up device names and alert settings
 ```
 
-### Releases and rollback
+### Updating
 
-Every version is published as a [GitHub release](../../releases) and a Git tag (`v1.0.0`, `v1.1.0`, …). See [CHANGELOG.md](CHANGELOG.md) for what changed in each. The running version is shown in the dashboard header.
+Every version is published as a [GitHub release](https://github.com/rainwaterjb/netwatch/releases) and a Git tag (`v1.0.0`, `v1.1.0`, …). The running version is shown in the dashboard header and at `/api/status`.
 
 ```bash
-./update.sh --list                    # list releases and show which one is running
-./update.sh v1.2.0                    # switch to a specific release (roll back)
-git checkout main && ./update.sh      # go back to the latest version
+cd netwatch                           # wherever you cloned it
+./update.sh --list                    # list releases, show what's running, and whether an update is out
+./update.sh                           # update to the latest release
 ```
 
-After rolling back to a release older than v1.3.1, that release's own `update.sh` can't switch versions. Run `git checkout main` first, as shown above; this works from any version.
+`update.sh` fetches the releases, checks out the newest one, rebuilds the image (pulling base-image security updates) and restarts NetWatch. Your `.env` and data volume are never touched. To hear about new releases, use **Watch → Custom → Releases** on the GitHub page.
 
-Switching versions keeps your `.env` and data: device names, alert settings and history. All versions share the same database format. If a newer version needs a setting that an older one doesn't have, the older version simply ignores it.
+`./update.sh main` runs the newest unreleased code from the `main` branch, for trying fixes before they're released; `./update.sh` takes you back to the latest release.
+
+> Installed before v1.13.1? Your `update.sh` follows the `main` branch instead of the latest release. Run `./update.sh` once; from then on it follows releases.
+
+### Rolling back
+
+```bash
+./update.sh v1.12.0                   # switch to any release
+git checkout main && ./update.sh      # back to the latest release (works from every version)
+```
+
+Rolling back keeps your `.env` and data. New versions only ever **add** to the database (new tables and columns), so any older release still opens it. A newer release's extras simply switch off until you update again; the table below says what. Releases older than v1.3.1 ship an `update.sh` that can't switch versions, which is why going back uses `git checkout main` first.
+
+### Releases at a glance
+
+Full details are in [CHANGELOG.md](CHANGELOG.md) and on the [Releases page](https://github.com/rainwaterjb/netwatch/releases).
+
+| Release | What it added | If you roll back to an older release |
+|---|---|---|
+| **v1.13.1** | `./update.sh` installs the latest release (not the development branch) and `--list` says when an update is out; README and `.env.example` brought up to date | `./update.sh` with no version follows `main` again |
+| **v1.13.0** | Prometheus `/metrics`, a Grafana dashboard and alert rules, JSON logs for Loki | `/metrics` is gone (Prometheus scrapes fail); logs go back to plain text |
+| **v1.12.0** | Installable app and native push notifications | App notifications stop; the app still opens as a web page |
+| **v1.11.0** | Device recognition (type, model, OS) and private Wi-Fi address linking | Types disappear; old linked addresses show up again as separate offline devices |
+| **v1.10.0** | Alert rules, Discord/Slack/Telegram/Gotify/webhook/MQTT channels, escalation, acknowledgement | Rule alerts stop; the per-device Phone/Email checkboxes keep working |
+| **v1.9.0** | Single sign-on (Authentik, Keycloak, Authelia, Google…) | SSO sign-in is gone; SSO accounts can't sign in; password accounts still work |
+| **v1.8.0** | Sign-in page, accounts (admin / read-only viewer), API tokens | Only the built-in admin works (browser login box); API tokens stop, so switch tools like Homepage back to Basic login first |
+| **v1.7.1** | DNS details need a login; layout fixes for long names on phones | — |
+| **v1.7.0** | Overview dashboard with a timeline; Top domains tab | The Devices tab is the home screen again |
+| **v1.6.0** | OPNsense, pfSense, UniFi and OpenWrt routers (plus Linksys) | Only Linksys works (set with the old `LINKSYS_*` settings) |
+| **v1.5.1** | Re-checks before marking a device offline (fewer phone flaps) | — |
+| **v1.5.0** | Service checks, internet outage tracking, Pi-hole, Wake-on-LAN, quiet hours, snooze, tags, device details, export | Those features disappear; devices and alert settings stay |
+| **v1.4.0** | Mobile-friendly dashboard | — |
+| **v1.3.1** | `update.sh` can switch between releases | Use `git checkout main && ./update.sh` to come back |
+| **v1.3.0** | HTTPS by default | Plain HTTP only |
+| **v1.2.0** | Add and remove DHCP reservations (Linksys) | — |
+| **v1.1.0** | Linksys router integration | — |
+| **v1.0.0** | Device inventory, IP map, drop-off alerts by phone and email | — |
 
 ### Running on Proxmox
 
@@ -283,6 +328,12 @@ If your provider uses a certificate from your own CA, point `OIDC_CA_FILE` at th
 
 ## Setting up notifications
 
+NetWatch can reach you in several ways; set up any you like:
+
+- **The NetWatch app** on your phone or computer, with native push notifications and no other account. See [The NetWatch app](#the-netwatch-app-and-push-notifications).
+- **ntfy** or **Pushover** apps, and **email** (below).
+- **Discord, Slack, Telegram, Gotify, webhooks / Home Assistant and MQTT** through [alert rules](#alert-rules-and-channels).
+
 ### Phone: ntfy (free)
 1. Install the **ntfy** app (iOS / Android).
 2. Make up a long, random topic name. On the public ntfy.sh server, anyone who knows a topic name can read it, so don't use something guessable.
@@ -295,10 +346,12 @@ Create an application at pushover.net, then set `PUSHOVER_USER_KEY` and `PUSHOVE
 ### Email
 Fill in the `SMTP_*` settings. Most providers use port `587` with `starttls`. For Gmail, use `smtp.gmail.com` and an **App Password**, not your account password. NetWatch refuses to send SMTP credentials over an unencrypted connection.
 
-After changing `.env`, restart with `docker compose up -d`, then click **Send test alert** in the dashboard. A notification channel's checkbox stays greyed out until that channel is configured.
+After changing `.env`, restart with `docker compose up -d`, then click **Send test alert** in the dashboard. The **Phone** checkbox works once ntfy, Pushover or the NetWatch app is set up; **Email** once SMTP is.
 
 ### Choosing what alerts you
 On the **Devices** tab, tick **Phone**, **Email**, or both for any device. Tick **+ when back** to also hear when it reconnects. Click a device's name to rename it. To be told about unknown devices joining, set `NOTIFY_NEW_DEVICES` to `phone`, `email`, or `both`.
+
+For more control (only alert if a device is gone for 10 minutes, whole groups by tag, other channels, escalation if nobody responds), use [alert rules](#alert-rules-and-channels). They work alongside the checkboxes.
 
 ---
 
@@ -656,6 +709,7 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `DISCOVERY` | `true` | Recognise devices from DHCP, Bonjour/mDNS and UPnP |
 | `DISCOVERY_INTERVAL` | `900` | Seconds between Bonjour/UPnP passes (min 300) |
 | `METRICS` | `true` | Prometheus metrics at `/metrics` (needs a sign-in or API token) |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` or `ERROR` |
 | `LOG_FORMAT` | `text` | `json` for one JSON object per log line (Loki, Vector) |
 | `LOG_ACTIVITY` | `false` | Also write each Activity entry to the log |
 | `PUSH_CONTACT` | `mailto:netwatch@example.org` | Contact address sent to push services (`mailto:` or `https:`) |
@@ -748,9 +802,10 @@ trivy image netwatch:latest                   # OS packages in the built image (
 
 **Recommendations**
 - Set `WEB_PASSWORD` and `ALLOWED_HOSTS`.
-- Install the self-signed certificate on your devices (or use your own), so you'd notice if a different certificate ever appeared.
+- Use a [trusted certificate](#a-free-trusted-certificate-with-lets-encrypt-and-cloudflare), or install the self-signed one on your devices, so you'd notice if a different certificate ever appeared.
+- Give each person their own account, and tools (Homepage, Prometheus) their own **read-only** API token.
 - Don't port-forward the dashboard to the internet. For remote access, use a VPN (WireGuard, Tailscale) or a reverse proxy with TLS and authentication.
-- Rebuild regularly with `docker compose build --pull` to pick up base-image security fixes.
+- Run `./update.sh` regularly: it installs the latest release and pulls base-image security fixes.
 - Use a long, random ntfy topic, or a self-hosted ntfy server with access tokens.
 
 ---
@@ -758,7 +813,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 ## Limitations and tips
 
 - **"Free" means nothing answered right now.** A powered-off device may still hold a DHCP lease, and IPs reserved on your router may look free (unless a router is connected). Before assigning a static IP, pick one outside your router's DHCP pool. The amber cells show addresses recently used by known devices.
-- **Randomized MAC addresses.** Modern phones and laptops often use a private MAC per Wi-Fi network; these show as "Private (randomized MAC)". The address is normally stable for a given network. If a device rotates it, it will show up as a new device.
+- **Randomized MAC addresses.** Modern phones and laptops often use a private MAC per Wi-Fi network; these get a **private address** badge. The address is normally stable for a given network. If a device changes it, NetWatch usually recognises it and offers to link it to the device you already know; see [Private Wi-Fi addresses](#private-randomized-wi-fi-addresses).
 - **Sleeping phones.** Phones and tablets in power-save mode often ignore the regular scan. Before marking any device offline, NetWatch checks it directly at its MAC address, which most dozing devices still answer. If a device still flaps on and off, raise `OFFLINE_AFTER_MISSED_SCANS` (e.g. to 10).
 - **Hostnames** depend on your router or DNS server publishing DHCP hostnames. If the column is blank, name devices in the dashboard.
 - **IPv4 only.** IPv6-only devices aren't discovered.
@@ -874,4 +929,4 @@ netwatch/
 
 ## Tech stack
 
-Python 3.13 · FastAPI · Uvicorn · Scapy · netaddr · cryptography · SQLite · vanilla HTML/JS
+Python 3.13 · FastAPI · Uvicorn · Scapy · netaddr · cryptography · PyJWT · SQLite · vanilla HTML/JS · Web Push (RFC 8291/8292) · Prometheus text format

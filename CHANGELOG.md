@@ -4,6 +4,13 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.13.1 (2026-11-18): Updating follows releases
+- `./update.sh` now installs the **latest release** instead of whatever is on the `main` branch, so a fresh install or an update always lands on a tested, published version. `./update.sh main` is there for trying unreleased fixes.
+- `./update.sh --list` says when a newer release is out.
+- README: the quick start installs the latest release, a new **Updating** section, a **Releases at a glance** table with what each release added and what switches off if you roll back past it, a current architecture diagram, release/CI/license badges, and up-to-date notification, security and limitation notes.
+- `.env.example` now includes the Pi-hole, internet-outage, scan-timeout and log-level settings.
+- No code changes to NetWatch itself. **Rollback-safe.**
+
 ## v1.13.0 (2026-11-18): Prometheus metrics, Grafana dashboard and JSON logs
 - **Prometheus metrics** at `/metrics`, scraped with a read-only API token: devices (online, type, critical, connected time), addresses, internet (up, latency, uptime, outages), service checks, DNS (with Pi-hole), open alerts, alert-channel health, activity counts and scanner health. Checked with `promtool check metrics`.
 - **Grafana dashboard** (`examples/monitoring/grafana/dashboards/netwatch.json`): status tiles, a device presence timeline, internet and service status, response times, devices over time, top DNS talkers, internet uptime, offline critical devices and activity. Every query was run against a real Prometheus 3.16 scraping NetWatch.
