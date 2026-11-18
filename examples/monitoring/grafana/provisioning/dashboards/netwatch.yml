@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: NetWatch
+    folder: NetWatch
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

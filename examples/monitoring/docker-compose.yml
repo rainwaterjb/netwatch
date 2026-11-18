@@ -1,0 +1,32 @@
+# Optional: a small Prometheus + Grafana stack with the NetWatch dashboard ready to go.
+# 1. Create a read-only API token in NetWatch (Access tab) and save it as ./netwatch_token
+# 2. Save NetWatch's certificate as ./netwatch.crt (skip with a Let's Encrypt certificate)
+# 3. Put your NetWatch address in prometheus.yml, then: docker compose up -d
+# Grafana: http://<host>:3000 (admin / the password below; change it on first sign-in)
+services:
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=90d"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./netwatch.rules.yml:/etc/prometheus/netwatch.rules.yml:ro
+      - ./netwatch_token:/etc/prometheus/netwatch_token:ro
+      - ./netwatch.crt:/etc/prometheus/netwatch.crt:ro
+      - prometheus-data:/prometheus
+    ports: ["9090:9090"]
+  grafana:
+    image: grafana/grafana:13.3.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: change-me-now
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports: ["3000:3000"]
+volumes:
+  prometheus-data:
+  grafana-data:

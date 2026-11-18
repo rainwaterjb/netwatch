@@ -35,6 +35,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Router integration** *(optional)* | Connects to **OPNsense, pfSense, UniFi, OpenWrt or Linksys**: shows DHCP reservations and the DHCP pool on the IP map, flags which free addresses are safe for static IPs, and uses your router's device names. Optionally add and remove DHCP reservations from a **Reservations** tab. |
 | **Alert rules** | "If any #iot device is offline for 10 minutes, post to Discord; if nobody acknowledges it in 30 minutes, also send to Telegram." Rules for devices, new devices, service checks, internet outages and chatty devices, with recovery messages, escalation and acknowledgement. |
 | **More alert channels** | Discord, Slack, Telegram, Gotify, ntfy, webhooks (including Home Assistant) and MQTT, alongside phone and email. |
+| **Prometheus and Grafana** | A `/metrics` endpoint for Prometheus, a ready-made Grafana dashboard (device presence timeline, internet, services, DNS), alert rules, and JSON logs for Loki. |
 | **Installable app** | Add NetWatch to your phone's home screen or your computer's dock, and get alerts as **native push notifications**, end-to-end encrypted, without ntfy or Pushover. |
 | **Phone notifications** | Through [ntfy](https://ntfy.sh) (free, open source, can be self-hosted) and/or [Pushover](https://pushover.net). |
 | **Email notifications** | Through any SMTP server (your mail provider, Gmail with an app password, a self-hosted relay, etc.). |
@@ -325,6 +326,66 @@ Generic names such as `iPhone` or `android-1a2b3c` are never enough, and two dev
 
 Set `DISCOVERY=false` to turn recognition off. **Rolling back is safe:** older versions ignore the new columns and tables; linked old addresses simply show up as separate (offline) devices again.
 
+## Prometheus, Grafana and Loki
+
+NetWatch exposes **Prometheus metrics** at `https://<netwatch>:8443/metrics`. A scrape is cheap: everything comes from data NetWatch already keeps.
+
+**1. Create a token:** Access → API tokens → name it "Prometheus", role **Viewer**.
+
+**2. Scrape it:**
+
+```yaml
+scrape_configs:
+  - job_name: netwatch
+    scheme: https
+    static_configs:
+      - targets: ["<netwatch-ip>:8443"]
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/netwatch_token
+    tls_config:
+      ca_file: /etc/prometheus/netwatch.crt   # NetWatch's own certificate; drop this with Let's Encrypt
+```
+
+**3. Import the dashboard:** in Grafana, *Dashboards → New → Import* and upload [`examples/monitoring/grafana/dashboards/netwatch.json`](examples/monitoring/grafana/dashboards/netwatch.json). Pick your Prometheus data source at the top. It shows:
+- status tiles: internet, devices online, free addresses, services down, open alerts, new devices
+- a **device presence** timeline (filter by device type or critical devices)
+- internet and service status, response times, and devices online over time
+- the top DNS talkers (with Pi-hole), internet uptime, critical devices that are offline, and activity
+
+**No Prometheus or Grafana yet?** [`examples/monitoring/`](examples/monitoring/) has a small Docker stack (Prometheus 3.16, Grafana 13.3) with the data source and dashboard already provisioned. Follow the comments at the top of its `docker-compose.yml`.
+
+**Alert rules:** [`examples/monitoring/netwatch.rules.yml`](examples/monitoring/netwatch.rules.yml) has rules for Alertmanager users: NetWatch unreachable, scans stopped, internet down, a service down, a critical device offline, and an alert channel failing.
+
+### Metrics
+
+| Metric | Labels | What it is |
+|---|---|---|
+| `netwatch_device_up` | `mac`, `name`, `ip`, `type`, `critical` | 1 if the device is online |
+| `netwatch_device_connected_seconds`, `netwatch_device_last_seen_timestamp_seconds` | `mac` | Time online without a break; when last seen |
+| `netwatch_devices_known`, `_online`, `_new`, `_private_address` | | Device counts |
+| `netwatch_ip_addresses` | `state` = online, offline, reserved, free | Addresses in the subnet |
+| `netwatch_internet_up`, `netwatch_internet_latency_seconds` | | Internet state and round-trip time |
+| `netwatch_internet_uptime_ratio` | `window` = 24h, 7d, 30d | Share of time the internet was up |
+| `netwatch_internet_outages_30d` | | Outages in the last 30 days |
+| `netwatch_service_up` | `check`, `name`, `kind` | 1 if a service check passes |
+| `netwatch_service_uptime_ratio`, `netwatch_service_latency_seconds` | `check` | Last 24 hours |
+| `netwatch_services_down` | | Checks failing now |
+| `netwatch_device_dns_queries_1h` | `mac` | DNS lookups in the last hour (Pi-hole) |
+| `netwatch_dns_queries_24h`, `netwatch_dns_chatty_devices`, `netwatch_pihole_up` | | DNS totals (Pi-hole) |
+| `netwatch_alerts_open` | `state` = waiting, unacknowledged, escalated, acknowledged | Rule alerts |
+| `netwatch_alerts_held`, `netwatch_push_devices` | | Held checkbox alerts; app installs with notifications |
+| `netwatch_alert_channel_ok` | `channel`, `kind` | 1 if the channel's last message got through |
+| `netwatch_events_24h` | `kind` | Activity entries in the last 24 hours |
+| `netwatch_last_scan_timestamp_seconds`, `netwatch_scan_duration_seconds`, `netwatch_scan_error` | | Scanner health |
+| `netwatch_info` | `version` | Always 1 |
+
+Device names and IPs are labels, so the metrics show what's on your network: keep the token read-only and Prometheus private. `METRICS=false` turns the endpoint off.
+
+### Logs for Loki
+
+Set `LOG_FORMAT=json` to write one JSON object per log line, which Grafana Alloy (for Loki) or Vector can read without parsing rules. Add `LOG_ACTIVITY=true` to also log every Activity entry (device online/offline, alerts, sign-ins…) with `event`, `mac` and `ip` fields, so you can search them in Loki.
+
 ## Alert rules and channels
 
 The Phone/Email checkboxes on each device are the simple way to get alerts, and they keep working. **Alert rules** (Alerts tab, admins) add more control:
@@ -594,6 +655,9 @@ All settings are environment variables in `.env`. See `.env.example` for a comme
 | `ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames/IPs allowed to reach the dashboard |
 | `DISCOVERY` | `true` | Recognise devices from DHCP, Bonjour/mDNS and UPnP |
 | `DISCOVERY_INTERVAL` | `900` | Seconds between Bonjour/UPnP passes (min 300) |
+| `METRICS` | `true` | Prometheus metrics at `/metrics` (needs a sign-in or API token) |
+| `LOG_FORMAT` | `text` | `json` for one JSON object per log line (Loki, Vector) |
+| `LOG_ACTIVITY` | `false` | Also write each Activity entry to the log |
 | `PUSH_CONTACT` | `mailto:netwatch@example.org` | Contact address sent to push services (`mailto:` or `https:`) |
 | `PUSH_ALLOWED_HOSTS` | *(empty)* | Extra push-service hosts to allow (only needed for unusual browsers) |
 | `PUBLIC_URL` | *(empty)* | NetWatch's address, added as a link to rule alerts |
@@ -735,6 +799,7 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `POST` | `/api/auth/password` | Change your own password: `current`, `new` |
 | `GET` / `POST` / `PATCH` / `DELETE` | `/api/users[/{id}]` | Manage accounts (admins, signed in; not with a token) |
 | `GET` / `POST` / `DELETE` | `/api/tokens[/{id}]` | Manage API tokens (admins, signed in; not with a token) |
+| `GET` | `/metrics` | Prometheus metrics (sign-in or API token) |
 | `GET` | `/api/push/key` | NetWatch's public push key |
 | `POST` | `/api/push/subscribe`, `/api/push/unsubscribe` | Turn notifications on/off for a browser |
 | `POST` | `/api/push/test` | Send a test to your own devices |
@@ -783,6 +848,8 @@ netwatch/
 │   ├── history.py       # Device presence timeline
 │   ├── recognize.py     # Device recognition (DHCP, mDNS, SSDP) and private-address linking
 │   ├── push.py          # Web Push: encryption (RFC 8291), VAPID (RFC 8292), subscriptions
+│   ├── metrics.py       # Prometheus metrics
+│   ├── logjson.py       # Text or JSON logging
 │   ├── timeline.py      # Overview timeline (outages, checks, presence, DNS)
 │   ├── wol.py           # Wake-on-LAN
 │   ├── db.py            # SQLite storage
@@ -796,6 +863,7 @@ netwatch/
 ├── requirements.txt     # Fully pinned, audited dependencies
 ├── update.sh            # Update, or switch to any release (rollback)
 ├── CHANGELOG.md         # What changed in each release
+├── examples/monitoring/ # Prometheus config, alert rules, Grafana dashboard, optional Docker stack
 ├── .env.example         # Configuration template (copy to .env)
 ├── .gitignore
 └── .dockerignore

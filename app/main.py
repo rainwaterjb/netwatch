@@ -32,14 +32,15 @@ from .wan import WanMonitor
 from .rules import EVENTS as RULE_EVENTS, RuleEngine, RuleError
 from .recognize import TYPES as DEVICE_TYPES, Recognizer, is_private_mac
 from .push import PushError, Pusher
+from . import metrics as prom
 from . import alert_channels
 from .notifier import Notifier
 from .routers import RouterError, create_router
 from .security import SecurityMiddleware
 from . import tls
 
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"),
-                    format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+from . import logjson
+logjson.setup()
 
 cfg = Config.from_env()
 log = logging.getLogger("netwatch")
@@ -830,6 +831,17 @@ def dns_domain(name: str = Query(..., max_length=253)):
         c["mac"] = d["mac"] if d else None
         c["name"] = display_name(d, router) if d else None
     return {"domain": name, **result}
+
+
+# ---------- Prometheus metrics ----------
+@app.get("/metrics")
+def metrics():
+    if not cfg.metrics:
+        raise HTTPException(404, "Metrics are turned off (METRICS=false)")
+    from .monitor import display_name
+    body = prom.render(store, monitor, checker, wan, pihole, rules, pusher, router,
+                       os.getenv("NETWATCH_VERSION", "dev"), display_name)
+    return Response(body, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 # ---------- Installable app and push notifications ----------

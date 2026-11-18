@@ -18,3 +18,7 @@ venv/
 certs/
 *.pem
 *.key
+
+# Secrets for the optional monitoring stack
+examples/monitoring/netwatch_token
+examples/monitoring/*.crt

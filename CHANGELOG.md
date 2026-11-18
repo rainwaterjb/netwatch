@@ -4,6 +4,13 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.13.0 (2026-11-18): Prometheus metrics, Grafana dashboard and JSON logs
+- **Prometheus metrics** at `/metrics`, scraped with a read-only API token: devices (online, type, critical, connected time), addresses, internet (up, latency, uptime, outages), service checks, DNS (with Pi-hole), open alerts, alert-channel health, activity counts and scanner health. Checked with `promtool check metrics`.
+- **Grafana dashboard** (`examples/monitoring/grafana/dashboards/netwatch.json`): status tiles, a device presence timeline, internet and service status, response times, devices over time, top DNS talkers, internet uptime, offline critical devices and activity. Every query was run against a real Prometheus 3.16 scraping NetWatch.
+- **Prometheus alert rules** (`examples/monitoring/netwatch.rules.yml`) and an optional **Prometheus + Grafana Docker stack** with everything provisioned.
+- **JSON logs** with `LOG_FORMAT=json` for Loki (via Grafana Alloy) or Vector; `LOG_ACTIVITY=true` adds every Activity entry as a structured log line.
+- `METRICS=false` turns the endpoint off. No database changes and no new dependencies. **Rollback-safe.**
+
 ## v1.12.0 (2026-11-18): Installable app and push notifications
 - **Install NetWatch as an app** on iPhone/iPad (Add to Home Screen), Android, Chrome/Edge (Install app button) and Mac (Add to Dock), with its own icon.
 - **Native push notifications**, no ntfy or Pushover needed: turn them on per device under **Access → Notifications on this device**. They carry everything that goes to Phone (device checkboxes, internet and chatty alerts, the quiet-hours digest) and alert rules that send to the new **NetWatch app** destination. Escalations stay on screen; tapping opens NetWatch.

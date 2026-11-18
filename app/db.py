@@ -5,10 +5,14 @@ older NetWatch versions can still open the database after an upgrade. That is
 what keeps ./update.sh <older-version> safe.
 """
 import json
+import logging
 import os
 import sqlite3
 import threading
 import time
+
+_activity_log = logging.getLogger("netwatch.activity")
+LOG_ACTIVITY = os.getenv("LOG_ACTIVITY", "false").lower() in ("1", "true", "yes", "on")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
@@ -302,6 +306,8 @@ class Store:
             "INSERT INTO events (ts, mac, ip, kind, detail) VALUES (?, ?, ?, ?, ?)",
             (ts or time.time(), mac, ip, kind, detail),
         )
+        if LOG_ACTIVITY:                       # also send Activity entries to the logs (e.g. for Loki)
+            _activity_log.info("%s: %s", kind, detail or "", extra={"event": kind, "mac": mac, "ip": ip})
 
     def events(self, limit=200, mac=None):
         if mac:

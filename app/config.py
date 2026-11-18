@@ -85,6 +85,7 @@ class Config:
     allowed_hosts: list[str] = field(default_factory=list)  # empty = any Host header
     public_url: str = ""                # link added to alerts, e.g. https://192.168.1.50:8443
     discovery: bool = True              # recognise devices (DHCP, mDNS, SSDP)
+    metrics: bool = True                # Prometheus metrics at /metrics (needs a login or API token)
     push_contact: str = ""              # VAPID contact (mailto: or https:) for push services
     push_allowed_hosts: list[str] = field(default_factory=list)   # extra push-service hosts
     discovery_interval: int = 900
@@ -167,6 +168,7 @@ class Config:
             allowed_hosts=[h.strip().lower() for h in _env("ALLOWED_HOSTS").split(",") if h.strip()],
             push_contact=_env("PUSH_CONTACT") if _env("PUSH_CONTACT").startswith(("mailto:", "https://")) else "",
             push_allowed_hosts=[h.strip().lower() for h in _env("PUSH_ALLOWED_HOSTS").split(",") if h.strip()],
+            metrics=_env("METRICS", "true").lower() not in ("0", "false", "no", "off"),
             discovery=_env("DISCOVERY", "true").lower() not in ("0", "false", "no", "off"),
             discovery_interval=max(300, int(_env("DISCOVERY_INTERVAL", "900"))),
             public_url=_env("PUBLIC_URL") if _env("PUBLIC_URL").startswith(("http://", "https://")) else "",

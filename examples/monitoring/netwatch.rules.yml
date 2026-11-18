@@ -1,0 +1,35 @@
+# Prometheus alert rules for NetWatch's metrics. NetWatch alerts on its own too;
+# these are for people who route everything through Alertmanager.
+groups:
+  - name: netwatch
+    rules:
+      - alert: NetWatchDown
+        expr: up{job="netwatch"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "NetWatch can't be scraped" }
+      - alert: NetWatchScanStale
+        expr: time() - netwatch_last_scan_timestamp_seconds > 600
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "NetWatch hasn't finished a network scan in 10 minutes" }
+      - alert: InternetDown
+        expr: netwatch_internet_up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "The internet connection is down" }
+      - alert: ServiceDown
+        expr: netwatch_service_up == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "{{ $labels.name }} is failing its check" }
+      - alert: CriticalDeviceOffline
+        expr: netwatch_device_up{critical="true"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "{{ $labels.name }} ({{ $labels.ip }}) is offline" }
+      - alert: AlertChannelFailing
+        expr: netwatch_alert_channel_ok == 0
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "NetWatch can't deliver to {{ $labels.channel }}" }

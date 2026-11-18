@@ -52,8 +52,8 @@ def _redirect_server(http_port, https_port, allowed_hosts):
 
 def main():
     cfg = Config.from_env()
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"),
-                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    from . import logjson
+    logjson.setup()
     common = dict(host="0.0.0.0", server_header=False, proxy_headers=True,
                   forwarded_allow_ips="127.0.0.1", log_level=os.getenv("LOG_LEVEL", "info").lower())
 
