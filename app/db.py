@@ -194,6 +194,11 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     last_error  TEXT,
     fails       INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS user_prefs (
+    owner       TEXT PRIMARY KEY,                     -- "user:<id>" (0 = built-in admin), "token:<id>" or "open"
+    prefs       TEXT NOT NULL,                        -- JSON: theme, status colors, home layout, pinned devices
+    updated     REAL
+);
 CREATE TABLE IF NOT EXISTS outages (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     start   REAL NOT NULL,
@@ -340,6 +345,19 @@ class Store:
                 self.conn.backup(dest)
             finally:
                 dest.close()
+
+    # Per-person preferences (appearance, home layout)
+    def get_prefs(self, owner):
+        rows = self._query("SELECT prefs FROM user_prefs WHERE owner = ?", (owner,))
+        return json.loads(rows[0]["prefs"]) if rows else None
+
+    def set_prefs(self, owner, prefs):
+        self._exec("INSERT INTO user_prefs (owner, prefs, updated) VALUES (?, ?, ?) "
+                   "ON CONFLICT(owner) DO UPDATE SET prefs = excluded.prefs, updated = excluded.updated",
+                   (owner, json.dumps(prefs, separators=(",", ":")), time.time()))
+
+    def delete_prefs(self, owner):
+        self._exec("DELETE FROM user_prefs WHERE owner = ?", (owner,))
 
     # Settings
     def get_settings(self):

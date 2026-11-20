@@ -351,6 +351,7 @@ class AuthManager:
         self.end_user_sessions(user_id)
         self.store._exec("UPDATE api_tokens SET revoked = 1 WHERE created_by = ?", (user_id,))
         self.store._exec("DELETE FROM users WHERE id = ?", (user_id,))
+        self.store.delete_prefs(f"user:{int(user_id)}")
         self._changed()
         self.store.add_event("auth", None, None, f"{by} deleted account '{user['username']}'")
 

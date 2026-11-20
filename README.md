@@ -13,7 +13,7 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 
 *From a demo network with made-up devices.*
 
-![Overview: status tiles, the Needs attention list, live activity and the timeline](docs/screenshots/overview.png)
+![Home: status tiles, the Needs attention list, live activity and the timeline](docs/screenshots/overview.png)
 
 | | |
 |---|---|
@@ -23,6 +23,8 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 | **Alerts**: rules, escalation and channels | **Services**: internet uptime and service checks |
 | ![Top DNS domains from Pi-hole](docs/screenshots/top-domains.png) | <img src="docs/screenshots/phone.png" alt="NetWatch on a phone" width="300"> |
 | **Top domains** from Pi-hole | **On a phone**, also installable as an app |
+| ![Eleven themes in Settings](docs/screenshots/themes.png) | ![Editing the Home page: move, resize, add and remove widgets](docs/screenshots/home-edit.png) |
+| **11 themes**, chosen by each person | **Your own Home page**, built from widgets |
 
 ---
 
@@ -30,7 +32,8 @@ It runs as a single Docker container. It works well on a small VM or LXC contain
 
 | | |
 |---|---|
-| **Overview dashboard** | One screen with the state of everything: internet, devices, services, free addresses and DNS; a **Needs attention** list; a live activity feed that can hide brief blips; the address map; and service checks with trend lines. |
+| **Home page** | One screen with the state of everything: internet, devices, services, free addresses and DNS; a **Needs attention** list; a live activity feed that can hide brief blips; the address map; and service checks with trend lines. Each person can rearrange it from 13 widgets. |
+| **Themes** | 11 themes (dark and light, including high contrast and a true-black one for phones), a color-blind-friendly status color option, and following your device's light or dark setting. Saved per person. |
 | **Timeline** | Internet outages, failed service checks, when each device was online, and DNS volume, all lined up on one time axis (6 hours, 24 hours or 7 days), so you can see what happened at the same moment. Filter by tag or show only devices that dropped. |
 | **Accounts and API tokens** | A sign-in page, separate accounts for each person (admin or read-only viewer), and API tokens for tools like Homepage. The built-in admin from `.env` always works. |
 | **Single sign-on** *(optional)* | Sign in with Authentik, Keycloak, Authelia or any OpenID Connect provider. Admin or viewer role comes from the provider's groups. |
@@ -146,6 +149,7 @@ Full details are in [CHANGELOG.md](CHANGELOG.md) and on the [Releases page](http
 
 | Release | What it added | If you roll back to an older release |
 |---|---|---|
+| **v1.15.0** | 11 themes and color-blind-friendly status colors (Settings → Appearance); a customizable Home page with 13 widgets and 4 starting layouts; pin devices to Home; pause alerts for an hour; fonts bundled locally | Everyone sees the original look and the fixed Overview again; a pause in progress ends |
 | **v1.14.0** | Secure by default: with no `WEB_PASSWORD` the dashboard stays closed instead of open to the network (`ALLOW_NO_LOGIN=true` for the old behaviour); the example Grafana stack needs its own password; screenshots | With no `WEB_PASSWORD`, the dashboard is open to everyone on the network again |
 | **v1.13.1** | `./update.sh` installs the latest release (not unreleased code on `main`) and `--list` says when an update is out; README and `.env.example` brought up to date | `./update.sh` with no version follows `main` again |
 | **v1.13.0** | Prometheus `/metrics`, a Grafana dashboard and alert rules, JSON logs for Loki | `/metrics` is gone (Prometheus scrapes fail); logs go back to plain text |
@@ -386,7 +390,7 @@ Open a device and look under **What it is** to see the type, what it was recogni
 
 iPhones, Android phones, Windows and macOS use a **private MAC address** for each Wi-Fi network, and may change it. To NetWatch that looks like a brand-new device, and the old one seems to disappear. Those devices get a **private address** badge.
 
-When a device with a private address appears with the **same name** as a device NetWatch already knows (for example `Alexs-iPhone`), ideally with the same DHCP fingerprint, the Overview shows **"… looks like Alex's iPhone"**:
+When a device with a private address appears with the **same name** as a device NetWatch already knows (for example `Alexs-iPhone`), ideally with the same DHCP fingerprint, the Home page shows **"… looks like Alex's iPhone"**:
 
 - **Same device:** the new address takes the old one's name, tags, alert settings and service checks. The old record is kept for history, hidden from lists, and can't raise alerts. Any "new device" alert is closed.
 - **Not the same:** NetWatch remembers and won't ask again.
@@ -468,7 +472,7 @@ The Phone/Email checkboxes on each device are the simple way to get alerts, and 
 
 If four or more alerts for the same rule are due at once (say, a power cut takes ten devices offline), they're sent as **one summary** instead of a flood. If a channel can't be reached, NetWatch retries with increasing gaps (for example, while the internet is down) and gives up after 30 attempts.
 
-**Open alerts** appear under **Needs attention** on the Overview and in the Alerts tab. Anyone signed in, including read-only viewers, can **acknowledge** them, which stops escalation. Admins manage rules and channels.
+**Open alerts** appear under **Needs attention** on the Home page and in the Alerts tab. Anyone signed in, including read-only viewers, can **acknowledge** them, which stops escalation. Admins manage rules and channels.
 
 ### Channels
 
@@ -495,7 +499,21 @@ All alerts (device drop-offs, service checks, internet outages, chatty devices, 
 - **Quiet hours** (Settings tab): alerts during the chosen hours (e.g. 22:00 to 07:00) are held, then sent as **one summary** when quiet hours end: a short list by phone and full details by email.
 - **Critical devices** (device detail panel) ignore quiet hours and always alert right away. Use this for things like your NAS or Proxmox host.
 - **Snooze** (device detail panel) silences a single device's alerts for 1 hour up to 1 week, e.g. while you reboot it. Skipped alerts are still listed in the Activity log.
+- **Pause alerts** (Home → Quick actions, admins) holds alerts for an hour, just like quiet hours, e.g. during maintenance. The notice bar shows it with **Resume now**.
 - **While the internet is down**, alerts can't reach your phone or inbox. They're held and sent once the connection is back.
+
+## Themes and your Home page
+
+**Settings → Appearance** has 11 themes: Control Room (the original), Daylight, OLED Black, Fjord, Paper, Phosphor, Ember, Synthwave, Lagoon, High Contrast and Neon Grid. Every theme's text and status colors meet the WCAG AA contrast minimum. You can also:
+
+- switch status colors from green and red to **blue and orange**, which are easier to tell apart with red-green color blindness (works with every theme);
+- **follow your device's light or dark setting**, choosing which light and which dark theme to use.
+
+**Home** is built from widgets. Choose **Edit home** to drag widgets around (or use the arrow buttons), set each one's width (S, M or L), remove them, or add others: Status, Needs attention, Live activity, Timeline, Address space, Service checks, Internet health, Top domains, Open alerts, New and unrecognized, Pinned devices, Device types and Quick actions. **Start from** offers four layouts: Overview (the original), At a glance, Troubleshooting and DNS watcher.
+
+Open any device and choose **Pin to Home** to put it in the Pinned devices widget (up to 12). **Quick actions** can pause alerts for an hour, which works like quiet hours: alerts are held and sent as a summary afterwards, and critical devices still alert right away.
+
+Theme and layout are saved to each person's account (read-only viewers included), so they follow you between devices and don't change anyone else's. API tokens get their own. The fonts are bundled with NetWatch, so the dashboard still makes no requests outside your network.
 
 ## Service checks
 
@@ -853,6 +871,10 @@ trivy image netwatch:latest                   # OS packages in the built image (
 | `POST` | `/api/reservations` | Add a reservation: `mac`, `ip`, `description` (requires `ROUTER_ALLOW_CHANGES`) |
 | `DELETE` | `/api/reservations/{mac}` | Remove a reservation (requires `ROUTER_ALLOW_CHANGES`) |
 | `POST` | `/api/scan` | Trigger a scan now |
+| `GET` | `/api/prefs` | Your theme, status colors and Home layout |
+| `PUT` | `/api/prefs` | Change any of them: `theme`, `status_colors`, `follow_system`, `light_theme`, `dark_theme`, `home` (list of `{id, size}`), `pinned` (MACs). Viewers can change their own |
+| `DELETE` | `/api/prefs` | Back to the defaults |
+| `POST` | `/api/alerts/pause` | Pause alerts: `{"minutes": 60}` (up to 1440), `0` resumes |
 | `GET` | `/api/devices/{mac}/history?days=` | Presence timeline, availability, IP history, recent events |
 | `GET` | `/api/devices/{mac}/dns` | Pi-hole query stats and top domains for a device |
 | `POST` | `/api/devices/{mac}/wake` | Send a Wake-on-LAN packet |
@@ -924,11 +946,14 @@ netwatch/
 │   ├── push.py          # Web Push: encryption (RFC 8291), VAPID (RFC 8292), subscriptions
 │   ├── metrics.py       # Prometheus metrics
 │   ├── logjson.py       # Text or JSON logging
-│   ├── timeline.py      # Overview timeline (outages, checks, presence, DNS)
+│   ├── timeline.py      # Home timeline (outages, checks, presence, DNS)
+│   ├── prefs.py         # Per-person theme and Home layout
 │   ├── wol.py           # Wake-on-LAN
 │   ├── db.py            # SQLite storage
 │   ├── config.py        # Environment-variable configuration
 │   ├── static/index.html  # Dashboard (single page, no external assets)
+│   ├── static/theme.js  # The 11 themes; sets colors before the page draws
+│   ├── static/fonts/    # Bundled fonts (SIL Open Font License, see FONTS.md)
 │   ├── static/login.html  # Sign-in page
 │   ├── static/sw.js     # Service worker: shows notifications (caches nothing)
 │   └── static/manifest.webmanifest, static/icons/  # Installable app
@@ -947,4 +972,4 @@ netwatch/
 
 ## Tech stack
 
-Python 3.13 · FastAPI · Uvicorn · Scapy · netaddr · cryptography · PyJWT · SQLite · vanilla HTML/JS · Web Push (RFC 8291/8292) · Prometheus text format
+Python 3.13 · FastAPI · Uvicorn · Scapy · netaddr · cryptography · PyJWT · SQLite · vanilla HTML/JS · Web Push (RFC 8291/8292) · Prometheus text format · Inter, IBM Plex, JetBrains Mono, Space Grotesk and Exo 2 fonts (SIL OFL)

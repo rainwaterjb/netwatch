@@ -6,6 +6,7 @@
 <title>NetWatch</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
+<script src="/theme.js"></script>
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,34 +17,36 @@
   :root {
     --bg: #0b0f14; --panel: #11161d; --line: #1f2731; --text: #e6edf3; --muted: #8b98a5;
     --green: #3fb950; --red: #f85149; --amber: #d29922; --free: #1a212b; --accent: #58a6ff;
+    --violet: #a371f7; --ink: #06121f; --radius: 8px; --glow: none; --bw: 1px;
+    --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+         font: 14px/1.45 var(--font); }
   header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;
-           padding: 16px 24px; border-bottom: 1px solid var(--line); }
+           padding: 16px 24px; border-bottom: var(--bw) solid var(--line); }
   h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
   h1 span { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
   .stats { display: flex; gap: 18px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
   .stats b { color: var(--text); font-weight: 600; }
-  button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+  button { background: var(--panel); color: var(--text); border: var(--bw) solid var(--line); border-radius: calc(var(--radius) * .75);
            padding: 6px 12px; cursor: pointer; font: inherit; }
   button:hover { border-color: var(--accent); }
   button.danger:hover { border-color: var(--red); color: var(--red); }
   main { padding: 16px 24px 48px; max-width: 1400px; margin: 0 auto; }
-  nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+  nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: var(--bw) solid var(--line); }
   nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none;
                color: var(--muted); padding: 8px 14px; }
   nav button.active { color: var(--text); border-bottom-color: var(--accent); }
   .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-  input[type=search], input[type=text] { background: var(--panel); border: 1px solid var(--line); color: var(--text);
-           border-radius: 6px; padding: 6px 10px; font: inherit; }
+  input[type=search], input[type=text] { background: var(--panel); border: var(--bw) solid var(--line); color: var(--text);
+           border-radius: calc(var(--radius) * .75); padding: 6px 10px; font: inherit; }
   input[type=search] { width: 280px; }
   label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); cursor: pointer; }
-  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line);
-          border-radius: 8px; overflow: hidden; }
-  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: var(--bw) solid var(--line);
+          border-radius: var(--radius); overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: var(--bw) solid var(--line); vertical-align: middle; }
   th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
        cursor: pointer; user-select: none; white-space: nowrap; }
   tr:last-child td { border-bottom: none; }
@@ -61,68 +64,68 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; }
   .cell { height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
           font-size: 11px; background: var(--free); color: var(--muted); cursor: default; }
-  .cell.online { background: rgba(62,207,142,.25); color: var(--text); border: 1px solid rgba(62,207,142,.6); }
-  .cell.offline { background: rgba(242,184,75,.15); color: var(--amber); border: 1px solid rgba(242,184,75,.4); }
-  .cell.reserved { background: rgba(167,139,250,.18); color: #c4b5fd; border: 1px solid rgba(167,139,250,.5); }
-  .cell.static-ok { border: 1px dashed rgba(62,207,142,.6); }
+  .cell.online { background: color-mix(in srgb, var(--green) 25%, transparent); color: var(--text); border: 1px solid color-mix(in srgb, var(--green) 60%, transparent); }
+  .cell.offline { background: color-mix(in srgb, var(--amber) 15%, transparent); color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); }
+  .cell.reserved { background: color-mix(in srgb, var(--violet) 18%, transparent); color: var(--violet); border: 1px solid color-mix(in srgb, var(--violet) 50%, transparent); }
+  .cell.static-ok { border: 1px dashed color-mix(in srgb, var(--green) 60%, transparent); }
   .chip { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 10px; margin-left: 6px;
-          background: rgba(167,139,250,.18); color: #c4b5fd; vertical-align: 1px; }
-  .chip.warn { background: rgba(242,184,75,.15); color: var(--amber); }
+          background: color-mix(in srgb, var(--violet) 18%, transparent); color: var(--violet); vertical-align: 1px; }
+  .chip.warn { background: color-mix(in srgb, var(--amber) 15%, transparent); color: var(--amber); }
   .info { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+  .card { background: var(--panel); border: var(--bw) solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; box-shadow: var(--glow); }
   .card h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
   .form { display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.5fr auto; gap: 10px; align-items: end; }
   .form label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
   .form label { min-width: 0; }
   .form input, .form select { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
-  .form input, .form select { background: var(--bg); border: 1px solid var(--line); color: var(--text);
-          border-radius: 6px; padding: 7px 9px; font: inherit; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
+  .form input, .form select { background: var(--bg); border: var(--bw) solid var(--line); color: var(--text);
+          border-radius: calc(var(--radius) * .75); padding: 7px 9px; font: inherit; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--ink); font-weight: 600; }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .note { color: var(--muted); font-size: 12px; margin-top: 10px; }
   .st { font-size: 12px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
-  .st.active { background: rgba(62,207,142,.15); color: var(--green); }
-  .st.pending { background: rgba(242,184,75,.15); color: var(--amber); }
+  .st.active { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+  .st.pending { background: color-mix(in srgb, var(--amber) 15%, transparent); color: var(--amber); }
   .st.offline, .st.never_seen { background: var(--free); color: var(--muted); }
-  .k-reservation { color: #c4b5fd; }
+  .k-reservation { color: var(--violet); }
   @media (max-width: 900px) { .form { grid-template-columns: 1fr; } }
   .legend { display: flex; gap: 16px; margin: 0 0 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
   .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
   .k-new { color: var(--accent); } .k-online { color: var(--green); } .k-offline { color: var(--red); }
   .k-ip_change { color: var(--amber); }
-  .banner { background: rgba(240,97,109,.12); border: 1px solid rgba(240,97,109,.4); color: var(--red);
-            padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: none; }
+  .banner { background: color-mix(in srgb, var(--red) 12%, transparent); border: 1px solid color-mix(in srgb, var(--red) 40%, transparent); color: var(--red);
+            padding: 8px 12px; border-radius: calc(var(--radius) * .75); margin-bottom: 12px; display: none; }
   .hidden { display: none; }
-  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel); border: 1px solid var(--line);
-           padding: 10px 14px; border-radius: 8px; display: none; max-width: 420px; }
+  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel); border: var(--bw) solid var(--line);
+           padding: 10px 14px; border-radius: var(--radius); display: none; max-width: 420px; }
   @media (max-width: 800px) { .hide-sm { display: none; } input[type=search] { width: 100%; } }
   .hdr-actions { display: flex; gap: 8px; }
   .mobile-only { display: none; }
-  select#sort-sel { background: var(--panel); border: 1px solid var(--line); color: var(--text);
-                    border-radius: 6px; padding: 7px 9px; font: inherit; }
+  select#sort-sel { background: var(--panel); border: var(--bw) solid var(--line); color: var(--text);
+                    border-radius: calc(var(--radius) * .75); padding: 7px 9px; font: inherit; }
   #toast { white-space: pre-line; }
   nav { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   nav::-webkit-scrollbar { display: none; }
   nav button { white-space: nowrap; flex: 0 0 auto; }
 
-  .notice { background: rgba(90,169,255,.1); border: 1px solid rgba(90,169,255,.35); color: var(--text);
-            padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: none; }
+  .notice { background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); color: var(--text);
+            padding: 8px 12px; border-radius: calc(var(--radius) * .75); margin-bottom: 12px; display: none; }
   .notice button { margin-left: 8px; padding: 2px 10px; }
   .notice div + div { margin-top: 6px; }
-  .sel, .tin, .nin { background: var(--panel); border: 1px solid var(--line); color: var(--text);
-                     border-radius: 6px; padding: 6px 8px; font: inherit; }
+  .sel, .tin, .nin { background: var(--panel); border: var(--bw) solid var(--line); color: var(--text);
+                     border-radius: calc(var(--radius) * .75); padding: 6px 8px; font: inherit; }
   .nin { width: 90px; }
   .opts { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 10px; }
   .grow { flex: 1; }
-  a.btn { display: inline-block; background: var(--panel); color: var(--text); border: 1px solid var(--line);
-          border-radius: 6px; padding: 6px 12px; text-decoration: none; }
+  a.btn { display: inline-block; background: var(--panel); color: var(--text); border: var(--bw) solid var(--line);
+          border-radius: calc(var(--radius) * .75); padding: 6px 12px; text-decoration: none; }
   a.btn:hover { border-color: var(--accent); }
   .cform { grid-template-columns: 1.4fr 1.2fr 1.4fr 0.7fr 1fr 1fr 1fr; }
-  .chip.new { background: rgba(90,169,255,.18); color: var(--accent); }
-  .chip.crit { background: rgba(240,97,109,.15); color: var(--red); }
+  .chip.new { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+  .chip.crit { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
   .chip.snz { background: var(--free); color: var(--muted); }
   .chip.tag { background: var(--free); color: var(--text); }
-  .chip.chatty { background: rgba(242,184,75,.15); color: var(--amber); }
+  .chip.chatty { background: color-mix(in srgb, var(--amber) 15%, transparent); color: var(--amber); }
   .name { cursor: pointer; display: inline; }
   .name:hover { color: var(--accent); border-bottom-color: transparent; }
   .hdr-net-down { color: var(--red) !important; }
@@ -130,7 +133,7 @@
   .spark i { width: 4px; height: 100%; background: var(--green); opacity: .8; border-radius: 1px; }
   .spark i.f { background: var(--red); }
   .k-service_down, .k-internet_down, .k-chatty { color: var(--red); } .k-service_up, .k-internet_up { color: var(--green); }
-  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end, .k-auth, .k-ack, .k-linked { color: var(--muted); } .k-escalated { color: #a371f7; }
+  .k-wake, .k-snooze, .k-suppressed, .k-chatty_end, .k-auth, .k-ack, .k-linked { color: var(--muted); } .k-escalated { color: var(--violet); }
   .bar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--free); }
   .bar i { display: block; height: 100%; }
   .bar i.online { background: var(--green); } .bar i.offline { background: var(--red); opacity: .75; } .bar i.unseen { background: var(--free); }
@@ -141,9 +144,9 @@
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-start;
            justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 20; }
   .modal.hidden { display: none; }
-  .sheet { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; width: 100%; max-width: 760px; padding: 18px 20px; }
+  .sheet { background: var(--bg); border: var(--bw) solid var(--line); border-radius: 12px; width: 100%; max-width: 760px; padding: 18px 20px; }
   .sheet h2 { margin: 0; font-size: 18px; }
-  .sheet section { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 14px; }
+  .sheet section { border-top: var(--bw) solid var(--line); padding-top: 12px; margin-top: 14px; }
   .sheet h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
   .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13px; }
   .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
@@ -153,15 +156,15 @@
   .sheet ul.plain li > span:first-child { min-width: 0; }
   ul.attn b, .tl-lbl { overflow-wrap: anywhere; }
   .dt-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg { display: inline-flex; border: var(--bw) solid var(--line); border-radius: calc(var(--radius) * .75); overflow: hidden; }
   .seg button { border: none; border-radius: 0; padding: 3px 10px; }
-  .seg button.on { background: var(--accent); color: #06121f; }
+  .seg button.on { background: var(--accent); color: var(--ink); }
   .tagedit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .tagedit .chip { margin: 0; font-size: 12px; padding: 3px 8px; }
   .tagedit .chip button { background: none; border: none; padding: 0 0 0 4px; color: var(--muted); min-height: 0; }
   .tagedit input { width: 140px; }
   ul.plain { list-style: none; margin: 0; padding: 0; font-size: 13px; }
-  ul.plain li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+  ul.plain li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: var(--bw) solid var(--line); }
   ul.plain li:last-child { border-bottom: none; }
   .domain { overflow-wrap: anywhere; }
   .stat-row { display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; margin-bottom: 8px; }
@@ -184,7 +187,7 @@
     header h1 { width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
     header h1 span { margin-left: 0; font-size: 12px; }
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
-    .stats > div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+    .stats > div { background: var(--panel); border: var(--bw) solid var(--line); border-radius: var(--radius); padding: 6px 10px; }
     .stats > div b { display: block; font-size: 16px; }
     .stats > #s-tls { grid-column: 1 / -1; padding: 6px 10px; }
     .stats > #s-tls b { display: inline; font-size: inherit; }
@@ -206,7 +209,7 @@
     /* Tables become stacked cards */
     table.cards, table.cards tbody { display: block; background: none; border: none; }
     table.cards thead { display: none; }
-    table.cards tr { display: grid; gap: 4px 10px; background: var(--panel); border: 1px solid var(--line);
+    table.cards tr { display: grid; gap: 4px 10px; background: var(--panel); border: var(--bw) solid var(--line);
                      border-radius: 10px; padding: 12px; margin-bottom: 10px; }
     table.cards td { display: block; padding: 0; border: none; min-width: 0; overflow-wrap: anywhere; }
     table.cards tr.empty { display: block; }
@@ -222,7 +225,7 @@
     table.devices .c-ip { grid-area: ip; }
     table.devices .c-mac { grid-area: mac; color: var(--muted); font-size: 12px; }
     table.devices .c-first { display: none !important; }
-    table.devices .c-alerts { grid-area: alerts; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+    table.devices .c-alerts { grid-area: alerts; border-top: var(--bw) solid var(--line); padding-top: 8px; margin-top: 4px; }
     table.devices .c-alerts .alerts { gap: 4px 16px; }
     table.devices .c-act { grid-area: act; display: flex; gap: 8px; justify-content: flex-end; }
     table.devices .c-act:empty { display: none; }
@@ -264,7 +267,7 @@
   /* Overview (Control Room) */
   body.on-home header .stats { display: none; }
   .strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
-  .tile { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; padding: 10px 14px; min-width: 0; }
+  .tile { background: var(--panel); border: var(--bw) solid var(--line); border-left: 3px solid var(--line); border-radius: var(--radius); padding: 10px 14px; min-width: 0; }
   .tile.good { border-left-color: var(--green); } .tile.bad { border-left-color: var(--red); }
   .tile.warn { border-left-color: var(--amber); } .tile.muted .t-v { color: var(--muted); }
   .t-l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .7px; }
@@ -278,30 +281,30 @@
   .card h3 .sub { font-weight: 400; }
   .card h3 .push { margin-left: auto; }
   ul.attn { list-style: none; margin: 0; padding: 0; }
-  ul.attn li { display: flex; gap: 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+  ul.attn li { display: flex; gap: 12px; align-items: center; padding: 9px 0; border-top: var(--bw) solid var(--line); }
   ul.attn li:first-child { border-top: none; padding-top: 2px; }
   ul.attn .a-body { flex: 1; min-width: 0; }
   ul.attn .a-body .sub { overflow-wrap: anywhere; }
   ul.attn .a-act { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .pill { font: 600 11px var(--mono); padding: 2px 7px; border-radius: 4px; letter-spacing: .5px; min-width: 64px; text-align: center; }
-  .pill.bad { background: rgba(248,81,73,.15); color: var(--red); }
-  .pill.warn { background: rgba(210,153,34,.15); color: var(--amber); }
-  .pill.info { background: rgba(88,166,255,.15); color: var(--accent); }
+  .pill.bad { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
+  .pill.warn { background: color-mix(in srgb, var(--amber) 15%, transparent); color: var(--amber); }
+  .pill.info { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
   .all-quiet { color: var(--green); }
   /* timeline */
   .tl-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 400; }
-  .tl-tools select { background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 8px; font: inherit; }
+  .tl-tools select { background: var(--bg); border: var(--bw) solid var(--line); color: var(--text); border-radius: calc(var(--radius) * .75); padding: 4px 8px; font: inherit; }
   .tl { --lbl: 190px; }
   .tl-row { display: grid; grid-template-columns: var(--lbl) minmax(0, 1fr) 40px; gap: 10px; align-items: center;
             min-height: 26px; width: 100%; background: none; border: none; border-radius: 4px; padding: 1px 0;
             color: inherit; font: inherit; text-align: left; }
-  button.tl-row { cursor: pointer; } button.tl-row:hover { background: rgba(88,166,255,.06); }
+  button.tl-row { cursor: pointer; } button.tl-row:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
   button.tl-row:focus-visible { outline: 2px solid var(--accent); }
   .tl-lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; font-size: 13px; }
   .tl-lbl .mono { color: var(--muted); font-size: 11px; }
   .tl-lbl .chip { margin-left: 4px; font-size: 10px; }
   .tl-track { position: relative; height: 10px; border-radius: 3px; }
-  .tl-track.ok { background: rgba(63,185,80,.18); height: 12px; }
+  .tl-track.ok { background: color-mix(in srgb, var(--green) 18%, transparent); height: 12px; }
   .tl-track.nodata { background: repeating-linear-gradient(90deg, var(--free) 0 6px, transparent 6px 10px); height: 12px; }
   .tl-track b { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
   .tl-track b.on { background: var(--accent); opacity: .85; }
@@ -311,14 +314,14 @@
   .tl-axis { position: relative; height: 16px; font: 11px var(--mono); color: var(--muted); }
   .tl-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
   .tl-sec { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 12px 0 4px; }
-  .tl-dns { display: flex; align-items: flex-end; gap: 2px; height: 48px; border-bottom: 1px solid var(--line); }
+  .tl-dns { display: flex; align-items: flex-end; gap: 2px; height: 48px; border-bottom: var(--bw) solid var(--line); }
   .tl-dns i { flex: 1; background: var(--muted); opacity: .55; min-height: 1px; border-radius: 1px 1px 0 0; }
   .tl-dns i.hi { background: var(--amber); opacity: 1; }
   /* address map + checks + feed */
   .mini-grid { display: grid; grid-template-columns: repeat(32, minmax(0, 1fr)); gap: 3px; }
   .mc { aspect-ratio: 1; border-radius: 2px; background: var(--free); cursor: pointer; }
   .mc.online { background: var(--green); opacity: .8; } .mc.offline { background: var(--amber); opacity: .6; }
-  .mc.reserved { background: #a371f7; opacity: .7; } .mc.static-ok { box-shadow: inset 0 0 0 1px rgba(63,185,80,.6); }
+  .mc.reserved { background: var(--violet); opacity: .7; } .mc.static-ok { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 60%, transparent); }
   table.mini { border: none; background: none; }
   table.mini td { padding: 7px 8px; }
   table.mini td, table.dom td { overflow-wrap: anywhere; }
@@ -326,7 +329,7 @@
   table.mini td:first-child { padding-left: 0; } table.mini td:last-child { padding-right: 0; }
   .ov-feed { position: sticky; top: 12px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
   ul.feed { list-style: none; margin: 8px 0 0; padding: 0; overflow-y: auto; font-size: 13px; }
-  ul.feed li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 2px 8px; padding: 7px 0; border-top: 1px solid var(--line); }
+  ul.feed li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 2px 8px; padding: 7px 0; border-top: var(--bw) solid var(--line); }
   ul.feed .f-t { font: 11px var(--mono); color: var(--muted); padding-top: 2px; }
   ul.feed .f-d { grid-column: 2; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
   @media (max-width: 1100px) { .ov-grid { grid-template-columns: 1fr; } .ov-feed { position: static; max-height: 480px; } }
@@ -341,7 +344,7 @@
     table.mini .hide-sm { display: none; }
   }
   table.dom td { padding: 7px 12px; }
-  table.dom tr.drow { cursor: pointer; } table.dom tr.drow:hover td { background: rgba(88,166,255,.05); }
+  table.dom tr.drow { cursor: pointer; } table.dom tr.drow:hover td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
   table.dom tr.drow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   table.dom .dbar { height: 6px; background: var(--free); border-radius: 3px; overflow: hidden; }
   table.dom .dbar i { display: block; height: 100%; background: var(--accent); }
@@ -354,7 +357,7 @@
   .who b { color: var(--text); }
   .role { font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: .6px; padding: 2px 6px; border-radius: 4px;
           background: var(--free); color: var(--muted); }
-  .role.admin { background: rgba(88,166,255,.15); color: var(--accent); }
+  .role.admin { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
   body.viewer .admin-only, body.viewer [data-ack], body.viewer [data-wake], body.viewer [data-reserve], body.viewer [data-run],
   body.viewer [data-edit], body.viewer [data-del], body.viewer [data-pause], body.viewer [data-unreserve], body.viewer [data-untag],
   body.viewer #btn-ack-all, body.viewer #dt-ack, body.viewer #dt-reserve, body.viewer [data-tagalert] { display: none !important; }
@@ -364,9 +367,9 @@
   table.acc td { overflow-wrap: anywhere; }
   table.acc .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .tokbox { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
-  .tokbox code { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 12px var(--mono);
+  .tokbox code { background: var(--bg); border: var(--bw) solid var(--line); border-radius: calc(var(--radius) * .75); padding: 6px 8px; font: 12px var(--mono);
                  overflow-wrap: anywhere; flex: 1; min-width: 0; user-select: all; }
-  pre.snip { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: 12px var(--mono);
+  pre.snip { background: var(--bg); border: var(--bw) solid var(--line); border-radius: calc(var(--radius) * .75); padding: 8px 10px; font: 12px var(--mono);
              overflow-x: auto; margin: 8px 0 0; white-space: pre; }
   @media (max-width: 760px) {
     #acc-add, #acc-tok-card .form, #acc-pw .form { grid-template-columns: 1fr !important; }
@@ -377,8 +380,8 @@
     .who button { flex: 0 0 auto !important; }
   }
   .rform { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-  .pill.ok { background: rgba(63,185,80,.15); color: var(--green); }
-  .pill.esc { background: rgba(163,113,247,.18); color: #c4a5ff; }
+  .pill.ok { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+  .pill.esc { background: color-mix(in srgb, var(--violet) 18%, transparent); color: var(--violet); }
   .pill.mute { background: var(--free); color: var(--muted); }
   #ru-items { background: var(--bg); color: var(--text); }
   .rule-off { opacity: .55; }
@@ -388,6 +391,80 @@
   .rec-type { display: flex; align-items: center; gap: 4px; font-size: 15px; color: var(--text); }
   details.ev summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
   details.ev ul.plain li span:last-child { text-align: right; overflow-wrap: anywhere; }
+
+  /* ---------- Customizable Home ---------- */
+  #tab-home .hidden { display: none !important; }
+  .home-bar { display: flex; align-items: center; gap: 10px; margin: -6px 0 10px; }
+  svg.ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; margin-right: 6px; }
+  .home-editbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 14px;
+                  border: var(--bw) dashed var(--accent); border-radius: var(--radius); background: var(--panel); }
+  .home-editbar .seg button { padding: 6px 12px; min-height: 36px; }
+  .home-wrap { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  .home-grid { flex: 999 1 640px; min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .home-lib { flex: 1 1 280px; max-width: 360px; position: sticky; top: 12px; }
+  .home-lib li { align-items: center; padding: 8px 0; }
+  .home-lib li b { display: block; font-size: 14px; }
+  .widget { min-width: 0; margin: 0; }
+  .widget.card { margin-bottom: 0; }
+  .widget[data-size="S"] { grid-column: span 1; } .widget[data-size="M"] { grid-column: span 2; } .widget[data-size="L"] { grid-column: 1 / -1; }
+  .widget .strip { margin-bottom: 0; }
+  .widget.w-bare > .w-h { display: none; }
+  .home-editing .widget.w-bare { background: var(--panel); border: var(--bw) solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .home-editing .widget.w-bare > .w-h { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 14px; }
+  .home-editing .widget { outline: 1px dashed var(--accent); outline-offset: 2px; }
+  .home-editing .widget.dragging { opacity: .45; }
+  .home-editing .widget.drop-before { box-shadow: -4px 0 0 0 var(--accent); }
+  .w-tools { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; font-weight: 400; }
+  .w-tools button { min-width: 34px; min-height: 34px; padding: 0 8px; }
+  .w-tools .seg button { min-width: 32px; font-weight: 600; font-size: 12px; }
+  .w-grip { cursor: grab; color: var(--muted); display: inline-flex; padding: 4px; touch-action: none; }
+  .w-grip svg { width: 16px; height: 16px; fill: currentColor; }
+  .home-editing .widget .push { margin-left: 0; }
+  .widget ul.feed { max-height: 460px; }
+  .widget[data-size="S"] .mini-grid { grid-template-columns: repeat(16, minmax(0, 1fr)); }
+  .widget[data-size="M"] .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .widget[data-size="S"] .tl-tools { display: none; }
+  .w-list { display: flex; flex-direction: column; gap: 8px; }
+  .w-item { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: calc(var(--radius) * .75); background: var(--free); min-width: 0; }
+  .w-item .w-body { flex: 1; min-width: 0; }
+  .w-item .w-body b, .w-item .w-body .sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .w-pins { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .w-pin { text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px; background: var(--free); border: var(--bw) solid transparent; border-radius: calc(var(--radius) * .75); min-width: 0; }
+  .w-pin b { display: flex; gap: 6px; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .w-big { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .w-big b { font-size: 26px; }
+  .w-bars { display: flex; flex-direction: column; gap: 7px; }
+  .w-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; font-size: 13px; }
+  .w-bar .track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--free); overflow: hidden; }
+  .w-bar .track i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .w-bar .track i.blocked { background: var(--red); }
+  .w-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .w-actions button { min-height: 44px; }
+  @media (max-width: 1100px) {
+    .home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .widget[data-size="M"], .widget[data-size="L"] { grid-column: 1 / -1; }
+    .home-lib { max-width: none; position: static; }
+  }
+  @media (max-width: 700px) {
+    .home-grid { grid-template-columns: minmax(0, 1fr); }
+    .widget[data-size] { grid-column: 1 / -1; }
+    .widget[data-size="M"] .strip { grid-template-columns: 1fr 1fr; }
+    .w-tools .seg { display: none; }
+  }
+
+  /* ---------- Appearance ---------- */
+  .ap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .ap-sw { text-align: left; padding: 8px; display: flex; flex-direction: column; gap: 6px; border-width: 2px; min-height: 44px; }
+  .ap-sw[aria-checked="true"] { border-color: var(--accent); }
+  .ap-prev { height: 54px; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 4px; border: 1px solid; }
+  .ap-prev .r1 { display: flex; gap: 4px; align-items: center; }
+  .ap-prev .r1 i:first-child { width: 22px; height: 5px; border-radius: 3px; }
+  .ap-prev .r1 i:last-child { width: 14px; height: 6px; border-radius: 3px; margin-left: auto; }
+  .ap-prev .r2 { display: flex; gap: 4px; flex: 1; }
+  .ap-prev .r2 > span { flex: 1; border-radius: 3px; border: 1px solid; display: flex; align-items: flex-end; gap: 2px; padding: 3px; }
+  .ap-prev .r2 i { width: 6px; height: 6px; border-radius: 50%; }
+  .ap-name { display: flex; justify-content: space-between; gap: 6px; }
+  .ap-name span { font-size: 11px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -413,7 +490,7 @@
   <div class="banner" id="err"></div>
   <div class="notice" id="notice"></div>
   <nav>
-    <button data-tab="home" class="active">Overview</button>
+    <button data-tab="home" class="active">Home</button>
     <button data-tab="devices">Devices</button>
     <button data-tab="ips">IP addresses</button>
     <button data-tab="svc">Services</button>
@@ -421,17 +498,33 @@
     <button data-tab="dns" id="nav-dns" style="display:none">Top domains</button>
     <button data-tab="events">Activity</button>
     <button data-tab="alr" class="admin-only">Alerts</button>
-    <button data-tab="set" class="admin-only">Settings</button>
+    <button data-tab="set">Settings</button>
     <button data-tab="acc" id="nav-acc">Access</button>
   </nav>
 
   <section id="tab-home">
-    <div class="strip" id="ov-strip"></div>
-    <div class="ov-grid">
-      <div class="ov-main">
-        <div class="card"><h3>Needs attention</h3><ul class="attn" id="ov-attn"></ul></div>
-        <div class="card">
-          <h3>Timeline
+    <div class="home-bar">
+      <span class="grow"></span>
+      <button id="home-edit" class="home-only-view"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><path d="M17.5 14v7M14 17.5h7"></path></svg>Edit home</button>
+    </div>
+    <div class="home-editbar hidden" id="home-editbar">
+      <span><b>Editing your home page.</b> <span class="sub">Drag widgets or use the arrows, pick S, M or L for width. Only you see this layout.</span></span>
+      <span class="grow"></span>
+      <span class="sub">Start from:</span>
+      <span class="seg" id="home-presets" role="group" aria-label="Starting layouts"></span>
+      <button id="home-reset">Reset to default</button>
+      <button class="primary" id="home-done">Done</button>
+    </div>
+    <div class="home-wrap">
+      <div class="home-grid" id="home-grid">
+        <section class="widget w-bare" data-w="status" aria-label="Status"><h3 class="w-h">Status</h3><div class="strip" id="ov-strip"></div></section>
+        <section class="widget card" data-w="attention"><h3 class="w-h">Needs attention</h3><ul class="attn" id="ov-attn"></ul></section>
+        <section class="widget card" data-w="activity"><h3 class="w-h">Live activity</h3>
+          <label class="chk"><input type="checkbox" id="ov-blips" checked> Hide brief blips (back within 5 min)</label>
+          <ul class="feed" id="ov-feed"></ul>
+        </section>
+        <section class="widget card" data-w="timeline">
+          <h3 class="w-h">Timeline
             <span class="tl-tools push">
               <span class="seg" id="tl-range" role="group" aria-label="Time range"></span>
               <select id="tl-tag" aria-label="Filter devices by tag"><option value="">All devices</option></select>
@@ -440,20 +533,28 @@
           </h3>
           <div class="tl" id="tl"></div>
           <p class="note">Blue bars show when each device was online; red marks are outages and failed checks. Hover for times, or select a device for its full history.</p>
-        </div>
-        <div class="card"><h3>Address space <span class="sub" id="ov-ips-sub"></span><button class="push" data-goto="ips">Open</button></h3>
+        </section>
+        <section class="widget card" data-w="ips"><h3 class="w-h">Address space <span class="sub" id="ov-ips-sub"></span><button class="push" data-goto="ips">Open</button></h3>
           <div class="mini-grid" id="ov-ips"></div>
           <div class="legend" style="margin:10px 0 0"><span><i style="background:var(--green)"></i>Online</span><span><i style="background:var(--amber)"></i>Offline</span>
-            <span><i style="background:#a371f7"></i>Reserved, not seen</span><span><i style="background:var(--free)"></i>Free</span></div>
-        </div>
-        <div class="card"><h3>Service checks <button class="push" data-goto="svc">Manage</button></h3><div id="ov-svc"></div></div>
+            <span><i style="background:var(--violet)"></i>Reserved, not seen</span><span><i style="background:var(--free)"></i>Free</span></div>
+        </section>
+        <section class="widget card" data-w="services"><h3 class="w-h">Service checks <button class="push" data-goto="svc">Manage</button></h3><div id="ov-svc"></div></section>
+        <section class="widget card" data-w="internet"><h3 class="w-h">Internet health <span class="sub" id="w-net-sub"></span></h3><div id="w-net"></div></section>
+        <section class="widget card" data-w="domains"><h3 class="w-h">Top domains <span class="sub">last 24 hours</span><button class="push" data-goto="dns">Open</button></h3><div id="w-dom"></div></section>
+        <section class="widget card" data-w="alerts"><h3 class="w-h">Open alerts <span class="sub" id="w-alr-sub"></span></h3><div id="w-alr"></div></section>
+        <section class="widget card" data-w="newdev"><h3 class="w-h">New and unrecognized <span class="sub" id="w-new-sub"></span></h3><div id="w-new"></div></section>
+        <section class="widget card" data-w="pinned"><h3 class="w-h">Pinned devices</h3><div id="w-pin"></div></section>
+        <section class="widget card" data-w="types"><h3 class="w-h">Device types <span class="sub" id="w-types-sub"></span></h3><div id="w-types"></div></section>
+        <section class="widget card" data-w="actions"><h3 class="w-h">Quick actions</h3><div class="w-actions" id="w-act"></div></section>
       </div>
-      <aside class="card ov-feed" aria-labelledby="feed-h">
-        <h3 id="feed-h">Live activity</h3>
-        <label class="chk"><input type="checkbox" id="ov-blips" checked> Hide brief blips (back within 5 min)</label>
-        <ul class="feed" id="ov-feed"></ul>
+      <aside class="home-lib card hidden" id="home-lib" aria-labelledby="home-lib-h">
+        <h3 id="home-lib-h">Add widgets</h3>
+        <p class="sub">Each widget shows only what you're allowed to see.</p>
+        <ul class="plain" id="home-lib-list"></ul>
       </aside>
     </div>
+    <div id="home-spare" hidden></div>
   </section>
 
   <section id="tab-dns" class="hidden">
@@ -506,11 +607,11 @@
 
   <section id="tab-ips" class="hidden">
     <div class="legend">
-      <span><i style="background:rgba(62,207,142,.5)"></i>In use (online)</span>
-      <span><i style="background:rgba(242,184,75,.4)"></i>Last used by an offline device</span>
-      <span class="rt"><i style="background:rgba(167,139,250,.45)"></i>Reserved on router (device not seen)</span>
+      <span><i style="background:color-mix(in srgb, var(--green) 50%, transparent)"></i>In use (online)</span>
+      <span><i style="background:color-mix(in srgb, var(--amber) 40%, transparent)"></i>Last used by an offline device</span>
+      <span class="rt"><i style="background:color-mix(in srgb, var(--violet) 45%, transparent)"></i>Reserved on router (device not seen)</span>
       <span><i style="background:var(--free)"></i>Available</span>
-      <span class="rt"><i style="background:var(--free);border:1px dashed rgba(62,207,142,.8)"></i>Available, outside DHCP pool (safe for static IPs)</span>
+      <span class="rt"><i style="background:var(--free);border:1px dashed color-mix(in srgb, var(--green) 80%, transparent)"></i>Available, outside DHCP pool (safe for static IPs)</span>
     </div>
     <p class="info" id="pool-info"></p>
     <div class="toolbar"><button id="btn-copy-free">Copy available IPs</button>
@@ -580,7 +681,25 @@
   </section>
 
   <section id="tab-set" class="hidden">
-    <div class="card">
+    <div class="card" id="ap-card">
+      <h3>Appearance</h3>
+      <p class="sub" style="margin:-4px 0 12px">Saved to your account, so it follows you to every device. Everyone else keeps their own.</p>
+      <div class="ap-grid" id="ap-themes" role="radiogroup" aria-label="Theme"></div>
+      <p class="sub" id="ap-note" style="margin:10px 0 0"></p>
+      <div class="opts" style="margin-top:14px">
+        <span>Status colors</span>
+        <span class="seg" id="ap-status" role="radiogroup" aria-label="Status colors">
+          <button role="radio" data-sc="standard">Green and red</button><button role="radio" data-sc="colorblind">Blue and orange</button>
+        </span>
+        <span class="sub">Blue and orange are easier to tell apart with red-green color blindness.</span>
+      </div>
+      <div class="opts">
+        <label class="chk"><input type="checkbox" id="ap-follow"> Follow my device's light or dark setting</label>
+        <label class="chk" id="ap-light-l">Light <select id="ap-light" class="sel"></select></label>
+        <label class="chk" id="ap-dark-l">Dark <select id="ap-dark" class="sel"></select></label>
+      </div>
+    </div>
+    <div class="card admin-only">
       <h3>Quiet hours</h3>
       <p class="info">During quiet hours, alerts are held and sent as one summary when quiet hours end. Devices marked <b>Critical</b> still alert right away.</p>
       <div class="opts">
@@ -590,7 +709,7 @@
         <span id="st-qnow" class="sub"></span>
       </div>
     </div>
-    <div class="card">
+    <div class="card admin-only">
       <h3>Alerts</h3>
       <div class="opts">
         <label class="chk">Internet outages <select id="st-wan" class="sel"></select></label>
@@ -602,19 +721,19 @@
       </div>
       <div class="opts"><span class="grow"></span><button class="primary" id="st-save">Save settings</button></div>
     </div>
-    <div class="card">
+    <div class="card admin-only">
       <h3>Device recognition <button class="push" id="st-discover">Look again now</button></h3>
       <p class="info">NetWatch works out what each device is (phone, TV, printer…) from what it already announces on your network: DHCP, Bonjour/mDNS and UPnP. It never logs in to anything.</p>
       <div id="st-rec" class="sub" style="margin-bottom:10px"></div>
       <label class="chk"><input type="checkbox" id="st-autolink"> Link phones and laptops that rejoin with a new private Wi-Fi address automatically, when it's clearly the same device (same name and DHCP fingerprint). Otherwise NetWatch asks first.</label>
       <div class="opts"><span class="grow"></span><button class="primary" id="st-save2">Save</button></div>
     </div>
-    <div class="card">
+    <div class="card admin-only">
       <h3>Tags</h3>
       <p class="info">Add tags to devices from their detail page (click a device's name). Then turn alerts on or off for a whole group here.</p>
       <div id="tag-list" class="sub">No tags yet.</div>
     </div>
-    <div class="card">
+    <div class="card admin-only">
       <h3>Export and backup</h3>
       <div class="opts">
         <a class="btn" href="/api/export/devices.csv" download>Download device list (CSV)</a>
@@ -622,7 +741,7 @@
       </div>
       <p class="note">The backup contains your device names, settings, history and service checks. Restore it by stopping NetWatch and copying it over <code>/data/netwatch.db</code> in the container's data volume.</p>
     </div>
-    <div class="card">
+    <div class="card admin-only">
       <h3>Integrations</h3>
       <div id="integrations" class="sub"></div>
     </div>
@@ -783,7 +902,7 @@ async function refresh() {
       const [ck, net] = await Promise.all([api("/api/checks"), api("/api/internet")]);
       state.checks = ck.checks; state.internet = net;
     }
-    if (state.tab === "set" && !state.settings) state.settings = await api("/api/settings");
+    if (state.tab === "set" && !state.settings && (state.me || {}).role !== "viewer") state.settings = await api("/api/settings");
     render();
   } catch (e) { showErr("Can't reach NetWatch: " + e.message); }
 }
@@ -813,7 +932,7 @@ function render() {
   if (state.tab === "events") renderEvents();
   if (state.tab === "res") renderRes();
   if (state.tab === "svc") renderServices();
-  if (state.tab === "set") renderSettings();
+  if (state.tab === "set") { renderAppearance(); renderSettings(); }
   $("#nav-res").style.display = rt.enabled ? "" : "none";
   $("#nav-dns").style.display = (st.pihole || {}).enabled ? "" : "none";
   renderHeaderExtras();
@@ -835,6 +954,8 @@ function renderHeaderExtras() {
   const parts = [];
   if (st.unacknowledged) parts.push(`<b>${st.unacknowledged}</b> new device${st.unacknowledged === 1 ? "" : "s"} on your network <button id="nt-review">Review</button>`);
   if (st.held_alerts) parts.push(`${st.quiet_now ? "Quiet hours" : "Held alerts"}: <b>${st.held_alerts}</b> alert${st.held_alerts === 1 ? "" : "s"} will be sent ${st.quiet_now ? "when quiet hours end" : "shortly"}`);
+  if ((st.paused_until || 0) * 1000 > Date.now())
+    parts.push(`Alerts paused until <b>${esc(new Date(st.paused_until * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</b>. Critical devices still alert. <button data-act="resume" class="admin-only">Resume now</button>`);
   const box = $("#notice"); box.innerHTML = parts.map(x => `<div>${x}</div>`).join(""); box.style.display = parts.length ? "block" : "none";
   const rv = $("#nt-review"); if (rv) rv.onclick = () => { $("#only-new").checked = true; $("#show-offline").checked = true; document.querySelector('nav button[data-tab="devices"]').click(); };
   $("#new-count").textContent = st.unacknowledged || 0;
@@ -1104,6 +1225,7 @@ async function openDetail(mac, keepScroll) {
     </div>
     <div class="dt-actions">
       ${!d.acknowledged ? `<button class="primary" id="dt-ack">Mark as known</button>` : ""}
+      <button id="dt-pin" aria-pressed="${isPinned(d.mac)}">${isPinned(d.mac) ? "Unpin from Home" : "Pin to Home"}</button>
       <button id="dt-wake" class="admin-only">Wake-on-LAN</button>
       <select id="dt-snooze" class="sel admin-only" aria-label="Snooze alerts">
         <option value="">${snoozed ? "Snoozed until " + esc(new Date(d.snooze_until * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})) : "Snooze alerts…"}</option>
@@ -1181,6 +1303,7 @@ $("#detail").addEventListener("click", async e => {
   if (e.target.dataset.days) { state.detailDays = +e.target.dataset.days; return openDetail(mac, true); }
   if (e.target.id === "dt-ack") { await api("/api/devices/acknowledge", { method: "POST", body: JSON.stringify({ macs: [mac] }) }); toast("Marked as known"); await refresh(); return openDetail(mac, true); }
   if (e.target.id === "dt-wake") return wake(mac);
+  if (e.target.id === "dt-pin") { togglePin(mac); const on = isPinned(mac); e.target.textContent = on ? "Unpin from Home" : "Pin to Home"; e.target.setAttribute("aria-pressed", on); return; }
   if (e.target.id === "dt-nick-save") return patchDevice(mac, { nickname: $("#dt-nick").value }, "Name saved");
   if (e.target.id === "dt-tag-add") return addTag(mac);
   if (e.target.dataset.untag) { const d = state.devices.find(x => x.mac === mac);
@@ -1387,16 +1510,25 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 async function loadHome(force) {
   const now = Date.now() / 1000;
-  const needTl = force || !state.tl || state.tl.hours !== state.tlHours || now - state.tlAt > 60;
+  const needTl = homeHas("timeline") && (force || !state.tl || state.tl.hours !== state.tlHours || now - state.tlAt > 60);
   const [ck, ev, tl, inc] = await Promise.all([api("/api/checks"), api("/api/events?limit=150"),
                                           needTl ? api(`/api/timeline?hours=${state.tlHours}`) : null,
                                           api("/api/incidents?open=1&limit=50").catch(() => ({ incidents: [] }))]);
   state.checks = ck.checks; state.events = ev.events; state.openInc = inc.incidents;
   state.links = (state.me || {}).role === "admin" ? (await api("/api/links").catch(() => ({ suggestions: [] }))).suggestions : [];
   if (tl) { state.tl = tl; state.tlAt = now; }
+  await loadHomeExtras(now);
 }
 
-function renderHome() { renderStrip(); renderAttention(); renderTimeline(); renderMiniIps(); renderMiniChecks(); renderFeed(); }
+function renderHome() {
+  const run = { status: renderStrip, attention: renderAttention, timeline: renderTimeline, ips: renderMiniIps,
+                services: renderMiniChecks, activity: renderFeed, internet: renderWNet, domains: renderWDom,
+                alerts: renderWAlr, newdev: renderWNew, pinned: renderWPin, types: renderWTypes, actions: renderWAct };
+  for (const w of homeLayout()) {
+    if (w.id === "timeline" && !state.tl) continue;
+    try { run[w.id](); } catch (e) { console.error("widget " + w.id, e); }
+  }
+}
 
 function renderStrip() {
   const st = state.status, net = st.internet || {};
@@ -1556,7 +1688,7 @@ function renderFeed() {
   const list = state.events.filter(e => !hide.has(e)).slice(0, 60);
   $("#ov-feed").innerHTML = list.map(e => `<li>
       <span class="f-t" title="${esc(ts(e.ts))}">${esc(feedTime(e.ts))}</span>
-      <span><span class="k-${esc(e.kind)}">${esc(EVENT_NAMES[e.kind] || e.kind)}</span> · ${esc(byMac[e.mac] ? devName(byMac[e.mac]) : (e.mac || e.ip || ""))}</span>
+      <span><span class="k-${esc(e.kind)}">${esc(EVENT_NAMES[e.kind] || e.kind)}</span>${(byMac[e.mac] || e.mac || e.ip) ? " · " + esc(byMac[e.mac] ? devName(byMac[e.mac]) : (e.mac || e.ip)) : ""}</span>
       ${e.detail ? `<span class="f-d">${esc(e.detail)}</span>` : ""}</li>`).join("")
     || `<li><span></span><span class="sub">No activity yet.</span></li>`;
 }
@@ -2106,7 +2238,278 @@ $("#acc-push").addEventListener("click", async e => {
 });
 document.querySelector('nav button[data-tab="acc"]').addEventListener("click", () => renderPushStatus());
 
-loadMe().then(refresh);
+
+// ---------- Appearance and Home layout (saved per person) ----------
+const WIDGETS = {
+  status:    { title: "Status", desc: "Internet, devices, services, free addresses, DNS", sizes: ["M", "L"], def: "L" },
+  attention: { title: "Needs attention", desc: "Things to act on right now", sizes: ["S", "M", "L"], def: "M" },
+  activity:  { title: "Live activity", desc: "Joins, drops and alerts as they happen", sizes: ["S", "M", "L"], def: "M" },
+  timeline:  { title: "Timeline", desc: "Who was online, and when", sizes: ["M", "L"], def: "L" },
+  ips:       { title: "Address space", desc: "Every address in your subnet", sizes: ["S", "M", "L"], def: "M" },
+  services:  { title: "Service checks", desc: "Web pages, ports and ping targets you watch", sizes: ["S", "M", "L"], def: "M" },
+  internet:  { title: "Internet health", desc: "Up or down, latency and outages", sizes: ["S", "M"], def: "S" },
+  domains:   { title: "Top domains", desc: "Most looked-up names from Pi-hole", sizes: ["S", "M", "L"], def: "S" },
+  alerts:    { title: "Open alerts", desc: "Alerts you can acknowledge", sizes: ["S", "M", "L"], def: "S" },
+  newdev:    { title: "New and unrecognized", desc: "Devices to name or link", sizes: ["S", "M", "L"], def: "M" },
+  pinned:    { title: "Pinned devices", desc: "Pin devices from their details window", sizes: ["S", "M", "L"], def: "M" },
+  types:     { title: "Device types", desc: "What kinds of devices you have", sizes: ["S", "M"], def: "S" },
+  actions:   { title: "Quick actions", desc: "Scan, test alert, pause alerts", sizes: ["S", "M"], def: "S" },
+};
+const HOME_PRESETS = [
+  { id: "default", name: "Overview", home: [["status", "L"], ["attention", "M"], ["activity", "M"], ["timeline", "L"], ["ips", "M"], ["services", "M"]] },
+  { id: "glance", name: "At a glance", home: [["status", "L"], ["pinned", "M"], ["internet", "S"], ["actions", "S"], ["alerts", "M"], ["newdev", "M"]] },
+  { id: "trouble", name: "Troubleshooting", home: [["attention", "M"], ["alerts", "M"], ["timeline", "L"], ["internet", "S"], ["services", "M"], ["actions", "S"], ["activity", "L"]] },
+  { id: "dns", name: "DNS watcher", home: [["status", "L"], ["domains", "M"], ["types", "S"], ["internet", "S"], ["activity", "M"], ["newdev", "M"]] },
+].map(p => ({ ...p, home: p.home.map(([id, size]) => ({ id, size })) }));
+const PREF_DEFAULTS = { theme: "control-room", status_colors: "standard", follow_system: false,
+                        light_theme: "daylight", dark_theme: "control-room", home: HOME_PRESETS[0].home, pinned: [] };
+state.prefs = { ...PREF_DEFAULTS, ...(NetWatchTheme.current() || {}) };
+state.homeEdit = false;
+let prefTimer = null, prefPending = {};
+
+async function loadPrefs() {
+  try { state.prefs = (await api("/api/prefs")).prefs; } catch (e) { /* keep defaults; the dashboard still works */ }
+  NetWatchTheme.apply(state.prefs);
+  applyHomeLayout();
+  renderAppearance();
+}
+function savePrefs(patch) {
+  Object.assign(state.prefs, patch); Object.assign(prefPending, patch);
+  NetWatchTheme.apply(state.prefs);
+  clearTimeout(prefTimer);
+  prefTimer = setTimeout(async () => {
+    const body = prefPending; prefPending = {};
+    try { await api("/api/prefs", { method: "PUT", body: JSON.stringify(body) }); }
+    catch (e) { toast("Couldn't save your layout: " + errText(e)); }
+  }, 350);
+}
+const homeLayout = () => (state.prefs.home || []).filter(w => WIDGETS[w.id]);
+const homeHas = id => homeLayout().some(w => w.id === id);
+const isPinned = mac => (state.prefs.pinned || []).includes(mac);
+function togglePin(mac) {
+  const pins = (state.prefs.pinned || []).filter(m => m !== mac);
+  if (!isPinned(mac)) {
+    if (pins.length >= 12) return toast("You can pin up to 12 devices");
+    pins.push(mac);
+  }
+  savePrefs({ pinned: pins });
+  toast(pins.includes(mac) ? "Pinned to Home" + (homeHas("pinned") ? "" : ". Add the Pinned devices widget to see it.") : "Unpinned");
+  if (state.tab === "home") renderHome();
+}
+
+let homeReload = null;
+function setHome(home) {
+  savePrefs({ home: home.map(w => ({ id: w.id, size: w.size })) }); applyHomeLayout(); renderHome();
+  clearTimeout(homeReload); homeReload = setTimeout(refresh, 300);      // fetch data for any widget just added
+}
+function applyHomeLayout() {
+  const grid = $("#home-grid"), spare = $("#home-spare");
+  const els = Object.fromEntries([...document.querySelectorAll("#tab-home .widget")].map(el => [el.dataset.w, el]));
+  const layout = homeLayout(), shown = new Set(layout.map(w => w.id));
+  layout.forEach(w => { const el = els[w.id]; el.dataset.size = w.size; grid.appendChild(el); });
+  Object.keys(els).forEach(id => { if (!shown.has(id)) spare.appendChild(els[id]); });
+  const editing = state.homeEdit;
+  $("#tab-home").classList.toggle("home-editing", editing);
+  $("#home-editbar").classList.toggle("hidden", !editing);
+  $("#home-lib").classList.toggle("hidden", !editing);
+  $("#home-edit").classList.toggle("hidden", editing);
+  document.querySelectorAll("#tab-home .w-tools").forEach(t => t.remove());
+  layout.forEach((w, i) => {
+    const el = els[w.id]; el.draggable = editing;
+    if (!editing) return;
+    const meta = WIDGETS[w.id], t = document.createElement("span");
+    t.className = "w-tools";
+    t.innerHTML = `<span class="w-grip" title="Drag to move" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+      <button data-wmove="-1" data-wid="${w.id}" aria-label="Move ${esc(meta.title)} earlier" ${i === 0 ? "disabled" : ""}>←</button>
+      <button data-wmove="1" data-wid="${w.id}" aria-label="Move ${esc(meta.title)} later" ${i === layout.length - 1 ? "disabled" : ""}>→</button>
+      <span class="seg" role="radiogroup" aria-label="Width of ${esc(meta.title)}">${meta.sizes.map(sz =>
+        `<button role="radio" data-wsize="${sz}" data-wid="${w.id}" aria-checked="${sz === w.size}" class="${sz === w.size ? "on" : ""}">${sz}</button>`).join("")}</span>
+      <button data-wremove="${w.id}" aria-label="Remove ${esc(meta.title)}">✕</button>`;
+    el.querySelector(".w-h").appendChild(t);
+  });
+  $("#home-presets").innerHTML = HOME_PRESETS.map(p => {
+    const on = JSON.stringify(p.home) === JSON.stringify(layout);
+    return `<button data-preset="${p.id}" aria-pressed="${on}" class="${on ? "on" : ""}">${esc(p.name)}</button>`;
+  }).join("");
+  const missing = Object.keys(WIDGETS).filter(id => !shown.has(id));
+  $("#home-lib-list").innerHTML = missing.map(id => `<li><span><b>${esc(WIDGETS[id].title)}</b><span class="sub">${esc(WIDGETS[id].desc)}</span></span>
+      <button data-wadd="${id}" aria-label="Add ${esc(WIDGETS[id].title)}">Add</button></li>`).join("")
+    || `<li><span class="sub">Every widget is on your page.</span></li>`;
+}
+
+$("#home-edit").onclick = () => { state.homeEdit = true; applyHomeLayout(); };
+$("#home-done").onclick = () => { state.homeEdit = false; applyHomeLayout(); toast("Home saved"); };
+$("#home-reset").onclick = () => setHome(HOME_PRESETS[0].home);
+$("#tab-home").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const layout = homeLayout().map(w => ({ ...w }));
+  if (b.dataset.preset) return setHome(HOME_PRESETS.find(p => p.id === b.dataset.preset).home);
+  if (b.dataset.wadd) { const id = b.dataset.wadd; return setHome([...layout, { id, size: WIDGETS[id].def }]); }
+  if (b.dataset.wremove) return setHome(layout.filter(w => w.id !== b.dataset.wremove));
+  if (b.dataset.wsize) return setHome(layout.map(w => w.id === b.dataset.wid ? { ...w, size: b.dataset.wsize } : w));
+  if (b.dataset.wmove) {
+    const i = layout.findIndex(w => w.id === b.dataset.wid), j = i + +b.dataset.wmove;
+    if (j < 0 || j >= layout.length) return;
+    [layout[i], layout[j]] = [layout[j], layout[i]];
+    setHome(layout);
+    const again = document.querySelector(`[data-wid="${b.dataset.wid}"][data-wmove="${b.dataset.wmove}"]`);
+    if (again && !again.disabled) again.focus();
+  }
+});
+// Drag and drop to reorder (mouse); the arrows do the same with a keyboard or touch.
+let dragId = null;
+$("#home-grid").addEventListener("dragstart", e => {
+  const el = e.target.closest && e.target.closest(".widget"); if (!state.homeEdit || !el) return;
+  dragId = el.dataset.w; el.classList.add("dragging"); e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", dragId); } catch (err) { /* old browsers */ }
+});
+$("#home-grid").addEventListener("dragover", e => {
+  if (!dragId) return; e.preventDefault();
+  document.querySelectorAll(".drop-before").forEach(x => x.classList.remove("drop-before"));
+  const el = e.target.closest(".widget"); if (el && el.dataset.w !== dragId) el.classList.add("drop-before");
+});
+$("#home-grid").addEventListener("drop", e => {
+  if (!dragId) return; e.preventDefault();
+  const target = e.target.closest(".widget"), layout = homeLayout().map(w => ({ ...w }));
+  const moving = layout.find(w => w.id === dragId), rest = layout.filter(w => w.id !== dragId);
+  const at = target ? rest.findIndex(w => w.id === target.dataset.w) : rest.length;
+  rest.splice(at < 0 ? rest.length : at, 0, moving);
+  dragId = null; setHome(rest);
+});
+$("#home-grid").addEventListener("dragend", () => {
+  dragId = null; document.querySelectorAll(".dragging, .drop-before").forEach(x => x.classList.remove("dragging", "drop-before"));
+});
+
+// ---- extra data for the newer widgets ----
+async function loadHomeExtras(now) {
+  const st = state.status || {};
+  const jobs = [];
+  if (homeHas("domains") && st.pihole && st.pihole.enabled && (!state.homeDom || now - state.homeDomAt > 300))
+    jobs.push(api("/api/dns/top?count=10").then(r => { state.homeDom = r; state.homeDomAt = now; }).catch(e => { state.homeDom = { error: errText(e) }; state.homeDomAt = now; }));
+  if (homeHas("internet") && st.internet && st.internet.enabled && (!state.homeNet || now - state.homeNetAt > 120))
+    jobs.push(api("/api/internet?days=7").then(r => { state.homeNet = r; state.homeNetAt = now; }).catch(() => {}));
+  await Promise.all(jobs);
+}
+const netPct = v => v == null ? "–" : (v >= 99.95 ? "100" : v.toFixed(v >= 99 ? 2 : 1)) + "%";
+function renderWNet() {
+  const st = state.status, net = st.internet || {}, box = $("#w-net");
+  if (!net.enabled) { $("#w-net-sub").textContent = ""; box.innerHTML = `<p class="sub">Internet monitoring is off (WAN_CHECK in .env).</p>`; return; }
+  const down = net.state === "down", outs = ((state.homeNet || {}).outages || []);
+  const last = outs[0];
+  $("#w-net-sub").textContent = `${netPct(net.uptime_7d)} this week`;
+  box.innerHTML = `<div class="w-big"><b style="color:var(${down ? "--red" : "--green"})">${down ? "Down" : net.state === "up" ? "Up" : "Checking"}</b>
+      <span class="mono sub">${down ? "for " + esc(dur(st.now - net.outage_since)) : net.latency_ms != null ? esc(net.latency_ms.toFixed(1)) + " ms" : ""}</span></div>
+    <table class="mini" style="margin-top:8px"><tbody>
+      <tr><td>24 hours</td><td class="mono">${netPct(net.uptime_24h)}</td></tr>
+      <tr><td>7 days</td><td class="mono">${netPct(net.uptime_7d)}</td></tr>
+      <tr><td>30 days</td><td class="mono">${netPct(net.uptime_30d)}</td></tr></tbody></table>
+    <p class="sub" style="margin:8px 0 0">${outs.length ? `${plural(outs.length, "outage")} this week. Last: ${esc(feedTime(last.start))}${last.end ? `, ${esc(dur(last.end - last.start))}` : ", still going"}` : "No outages this week."}</p>`;
+}
+function renderWDom() {
+  const st = state.status, box = $("#w-dom");
+  if (!(st.pihole && st.pihole.enabled)) { box.innerHTML = `<p class="sub">Connect Pi-hole (PIHOLE_URLS in .env) to see the most looked-up domains.</p>`; return; }
+  const r = state.homeDom;
+  if (!r) { box.innerHTML = `<p class="sub">Loading…</p>`; return; }
+  if (r.error) { box.innerHTML = `<p class="sub">${esc(r.error)}</p>`; return; }
+  const top = (r.allowed || []).slice(0, 6), max = Math.max(1, ...top.map(d => d.count));
+  const blockedPct = r.total_queries ? (100 * r.blocked_queries / r.total_queries).toFixed(1) : "0";
+  box.innerHTML = `<div class="w-bars">${top.map(d => `<div class="w-bar"><span class="mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.domain)}</span>
+      <span class="sub">${fmtN(d.count)}</span><span class="track"><i style="width:${Math.max(2, Math.round(100 * d.count / max))}%"></i></span></div>`).join("") || `<p class="sub">No lookups yet.</p>`}</div>
+    <p class="sub" style="margin:8px 0 0">${fmtN(r.total_queries || 0)} lookups, ${blockedPct}% blocked</p>`;
+}
+function renderWAlr() {
+  const open = (state.openInc || []).filter(i => i.state === "sent" || i.state === "pending");
+  $("#w-alr-sub").textContent = open.length ? `${open.length} open` : "";
+  const st = state.status, paused = (st.paused_until || 0) * 1000 > Date.now();
+  $("#w-alr").innerHTML = (paused ? `<p class="sub" style="margin:0 0 8px">Paused until ${esc(new Date(st.paused_until * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}.</p>` : "") +
+    (open.length ? `<div class="w-list">${open.slice(0, 6).map(i => `<div class="w-item">
+        <span class="dot ${i.state === "sent" ? "off" : ""}" aria-hidden="true"></span>
+        <div class="w-body"><b>${esc(i.title)}</b><span class="sub">${esc([i.rule_name, i.state === "pending" ? "waiting" : i.escalated_at ? "escalated" : "sent " + dur(Date.now() / 1000 - i.sent_at) + " ago"].filter(Boolean).join(" · "))}</span></div>
+        ${i.state === "sent" && !i.acked_at ? `<button data-ackinc="${+i.id}">Acknowledge</button>` : ""}</div>`).join("")}</div>`
+      : `<p class="sub">No open alerts.</p>`);
+}
+function renderWNew() {
+  const now = state.now, fresh = state.devices.filter(d => !d.acknowledged).sort((a, b) => b.first_seen - a.first_seen);
+  const links = state.links || [];
+  $("#w-new-sub").textContent = fresh.length + links.length ? `${fresh.length + links.length} to review` : "";
+  const rows = links.slice(0, 3).map(l => `<div class="w-item"><div class="w-body"><b>${esc(l.new.name)}</b>
+        <span class="sub">Private address ${esc(l.new.ip || "")}, looks like ${esc(l.old.name)}</span></div><button data-linkok="${+l.id}">Same device</button></div>`)
+    .concat(fresh.slice(0, 6).map(d => `<div class="w-item">${typeIcon(d.device_type)}<div class="w-body"><b>${esc(devName(d))}</b>
+        <span class="sub mono">${esc(d.ip || "no IP")} · ${esc(d.vendor || "unknown maker")} · ${esc(dur(now - d.first_seen))} ago</span></div>
+        <button data-ack="${esc(d.mac)}">Known</button><button data-open="${esc(d.mac)}">Details</button></div>`));
+  $("#w-new").innerHTML = rows.length ? `<div class="w-list">${rows.join("")}</div>` + (fresh.length > 6 ? `<p class="sub" style="margin:8px 0 0"><button data-review>Review all ${fresh.length}</button></p>` : "")
+    : `<p class="sub">Every device is known.</p>`;
+}
+function renderWPin() {
+  const byMac = Object.fromEntries((state.allDevices || state.devices).map(d => [d.mac, d])), now = state.now;
+  const pins = (state.prefs.pinned || []).map(m => byMac[m]).filter(Boolean);
+  $("#w-pin").innerHTML = pins.length ? `<div class="w-pins">${pins.map(d => `<button class="w-pin" data-open="${esc(d.same_as || d.mac)}">
+      <b><span class="dot ${d.online ? "on" : "off"}" aria-hidden="true"></span>${esc(devName(d))}</b>
+      <span class="sub mono">${esc(d.ip || "")}</span>
+      <span class="sub">${d.online ? (d.online_since ? "Up " + esc(dur(now - d.online_since)) : "Online") : "Offline " + esc(dur(now - d.last_seen))}</span></button>`).join("")}</div>`
+    : `<p class="sub">Nothing pinned yet. Open a device and choose <b>Pin to Home</b>.</p>`;
+}
+function renderWTypes() {
+  const counts = {};
+  state.devices.forEach(d => { const t = d.device_type || "unknown"; counts[t] = (counts[t] || 0) + 1; });
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]), max = Math.max(1, ...rows.map(r => r[1]));
+  $("#w-types-sub").textContent = `${state.devices.length} known`;
+  $("#w-types").innerHTML = `<div class="w-bars">${rows.slice(0, 8).map(([t, n]) => `<div class="w-bar"><span>${TYPE_NAMES[t] ? typeIcon(t) : ""}${esc(TYPE_NAMES[t] || "Not sure yet")}</span>
+      <span class="sub">${n}</span><span class="track"><i style="width:${Math.round(100 * n / max)}%"></i></span></div>`).join("")}</div>`;
+}
+function renderWAct() {
+  const st = state.status, paused = (st.paused_until || 0) * 1000 > Date.now();
+  $("#w-act").innerHTML = `<button class="primary admin-only" data-act="scan">Scan now</button>
+    <button class="admin-only" data-act="test">Send test alert</button>
+    <button class="admin-only" data-act="${paused ? "resume" : "pause"}">${paused ? "Resume alerts" : "Pause alerts 1 h"}</button>
+    <button data-review>Review new devices</button>`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  b.disabled = true;
+  try {
+    if (b.dataset.act === "scan") $("#btn-scan").click();
+    else if (b.dataset.act === "test") $("#btn-test").click();
+    else {
+      const minutes = b.dataset.act === "pause" ? 60 : 0;
+      await api("/api/alerts/pause", { method: "POST", body: JSON.stringify({ minutes }) });
+      toast(minutes ? "Alerts paused for 1 hour. Critical devices still alert." : "Alerts resumed");
+      await refresh();
+    }
+  } catch (err) { toast(errText(err)); }
+  finally { b.disabled = false; }
+});
+
+// ---- Appearance card ----
+function renderAppearance() {
+  const T = NetWatchTheme.themes, p = state.prefs, active = NetWatchTheme.active();
+  $("#ap-themes").innerHTML = Object.entries(T).map(([id, t]) => `<button class="ap-sw" role="radio" data-theme="${id}" aria-checked="${id === p.theme}" aria-label="${esc(t.name)} theme">
+      <span class="ap-prev" style="background:${t.bg};border-color:${t.line}" aria-hidden="true">
+        <span class="r1"><i style="background:${t.text}"></i><i style="background:${t.accent}"></i></span>
+        <span class="r2"><span style="background:${t.panel};border-color:${t.line}"><i style="background:${p.status_colors === "colorblind" ? t.cbOn : t.green}"></i><i style="background:${p.status_colors === "colorblind" ? t.cbOff : t.red}"></i><i style="background:${t.amber}"></i></span><span style="background:${t.panel};border-color:${t.line}"></span></span>
+      </span>
+      <span class="ap-name"><b>${esc(t.name)}</b><span>${t.mode === "dark" ? "Dark" : "Light"}</span></span></button>`).join("");
+  const cur = T[active] || {};
+  $("#ap-note").innerHTML = `<b>${esc(cur.name || "")}:</b> ${esc(cur.note || "")}${p.follow_system ? " (following your device's setting)" : ""}`;
+  document.querySelectorAll("#ap-status button").forEach(b => { const on = b.dataset.sc === p.status_colors; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  $("#ap-follow").checked = !!p.follow_system;
+  const opts = mode => Object.entries(T).filter(([, t]) => t.mode === mode).map(([id, t]) => `<option value="${id}">${esc(t.name)}</option>`).join("");
+  $("#ap-light").innerHTML = opts("light"); $("#ap-light").value = p.light_theme;
+  $("#ap-dark").innerHTML = opts("dark"); $("#ap-dark").value = p.dark_theme;
+  $("#ap-light-l").classList.toggle("hidden", !p.follow_system); $("#ap-dark-l").classList.toggle("hidden", !p.follow_system);
+}
+$("#ap-themes").addEventListener("click", e => {
+  const b = e.target.closest("[data-theme]"); if (!b) return;
+  const id = b.dataset.theme, mode = NetWatchTheme.themes[id].mode;
+  savePrefs({ theme: id, [mode === "light" ? "light_theme" : "dark_theme"]: id }); renderAppearance();
+  const again = document.querySelector(`#ap-themes [data-theme="${id}"]`); if (again) again.focus();
+});
+$("#ap-status").addEventListener("click", e => { const b = e.target.closest("[data-sc]"); if (b) { savePrefs({ status_colors: b.dataset.sc }); renderAppearance(); } });
+$("#ap-follow").addEventListener("change", e => { savePrefs({ follow_system: e.target.checked }); renderAppearance(); });
+$("#ap-light").addEventListener("change", e => { savePrefs({ light_theme: e.target.value }); renderAppearance(); });
+$("#ap-dark").addEventListener("change", e => { savePrefs({ dark_theme: e.target.value }); renderAppearance(); });
+applyHomeLayout();
+loadMe().then(loadPrefs).then(refresh);
 setInterval(refresh, 10000);
 </script>
 </body>

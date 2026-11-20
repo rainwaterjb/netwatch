@@ -4,6 +4,17 @@ Each version is a Git tag and a GitHub release. To switch to any version (to rol
 
 All versions use the same database format, so you can move between them freely without losing device names, alert settings or history.
 
+## v1.15.0 (2026-11-20): Themes and your own Home page
+- **11 themes** in **Settings → Appearance**: Control Room (the original), Daylight, OLED Black, Fjord, Paper, Phosphor, Ember, Synthwave, Lagoon, High Contrast and Neon Grid. All text and status colors meet WCAG AA contrast in every theme.
+- **Blue and orange status colors** as an option with any theme, for red-green color blindness, and **follow the device's light or dark setting** with a chosen light and dark theme.
+- **Customizable Home page** (the Overview tab is now Home): drag or use arrows to reorder, S/M/L widths, remove and add widgets. 13 widgets, including new **Internet health**, **Top domains**, **Open alerts**, **New and unrecognized**, **Pinned devices**, **Device types** and **Quick actions**. Four starting layouts: Overview, At a glance, Troubleshooting and DNS watcher.
+- **Pin to Home** in each device's details (up to 12 devices).
+- **Pause alerts for an hour** from Quick actions (admins). Works like quiet hours: held alerts go out as a summary afterwards; critical devices still alert. Shown in the notice bar with **Resume now**. API: `POST /api/alerts/pause`.
+- Theme and layout are saved per person (viewers too, and each API token separately) via `GET/PUT/DELETE /api/prefs`, and cleaned up when an account is deleted. Settings is now visible to viewers, showing only Appearance.
+- The sign-in page follows the theme you used last on that browser.
+- Fonts are bundled (SIL Open Font License), so the dashboard still loads nothing from outside your network.
+- Database: one new table, `user_prefs`. **Rollback-safe**: older versions ignore it and show the original look and Overview.
+
 ## v1.14.0 (2026-11-18): Secure by default
 - **No password, no dashboard.** If `WEB_PASSWORD` isn't set (and there are no accounts), the dashboard and API now stay closed and show a page explaining how to set it, instead of being open to anyone on the network. Scanning, alerts and the health check keep running. Set `ALLOW_NO_LOGIN=true` to keep the old open behaviour (not recommended).
 - The example Prometheus + Grafana stack no longer ships a default Grafana password: it won't start until you set `GRAFANA_PASSWORD` in its own `.env`.

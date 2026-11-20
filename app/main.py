@@ -40,6 +40,7 @@ from .security import SecurityMiddleware
 from . import tls
 
 from . import logjson
+from . import prefs as user_prefs
 logjson.setup()
 
 cfg = Config.from_env()
@@ -345,6 +346,7 @@ def status():
         "pihole": pihole.status(),
         "held_alerts": store.count_pending(),
         "quiet_now": in_quiet_hours(alerts.settings()),
+        "paused_until": alerts.settings().get("paused_until") or 0,
         "checks_down": sum(1 for c in store.checks() if c["enabled"] and c["state"] == "down"),
         "recognition": recognizer.status(),
     }
@@ -683,7 +685,53 @@ class SettingsUpdate(BaseModel):
 @app.get("/api/settings")
 def get_settings():
     return {"settings": alerts.settings(), "defaults": DEFAULT_SETTINGS,
-            "quiet_now": in_quiet_hours(alerts.settings()), "held_alerts": store.count_pending()}
+            "quiet_now": in_quiet_hours(alerts.settings()), "held_alerts": store.count_pending(),
+            "paused_until": alerts.settings().get("paused_until") or 0}
+
+
+class PauseIn(BaseModel):
+    minutes: int = Field(ge=0, le=1440)
+
+
+@app.post("/api/alerts/pause")
+def pause_alerts(body: PauseIn, request: Request):
+    """Hold non-critical alerts for a while, like quiet hours. 0 resumes now."""
+    now = time.time()
+    until = now + body.minutes * 60 if body.minutes else 0
+    store.set_settings({"paused_until": until})
+    who = (_who(request) or {}).get("username") or "dashboard"
+    store.add_event("snooze", None, None,
+                    f"Alerts paused for {body.minutes} min by {who}" if body.minutes else f"Alerts resumed by {who}", ts=now)
+    return get_settings()
+
+
+# Per-person appearance and Home layout
+@app.get("/api/prefs")
+def get_prefs(request: Request):
+    who = _who(request)
+    return {"prefs": user_prefs.merged(store.get_prefs(user_prefs.owner_key(who))),
+            "themes": user_prefs.THEMES, "widgets": {k: list(v) for k, v in user_prefs.WIDGETS.items()},
+            "default_home": user_prefs.DEFAULT_HOME}
+
+
+@app.put("/api/prefs")
+def put_prefs(request: Request, body: dict = Body(...)):
+    who = _who(request)
+    key = user_prefs.owner_key(who)
+    try:
+        update = user_prefs.normalize(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    current = user_prefs.merged(store.get_prefs(key))
+    current.update(update)
+    store.set_prefs(key, current)
+    return {"prefs": current}
+
+
+@app.delete("/api/prefs")
+def reset_prefs(request: Request):
+    store.delete_prefs(user_prefs.owner_key(_who(request)))
+    return {"prefs": user_prefs.merged(None)}
 
 
 @app.put("/api/settings")
@@ -853,6 +901,22 @@ def manifest():
 @app.get("/sw.js")
 def service_worker():
     return FileResponse(STATIC / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
+
+FONT_FILES = {p.name for p in (STATIC / "fonts").glob("*.woff2")} if (STATIC / "fonts").is_dir() else set()
+
+
+@app.get("/fonts/{name}")
+def font(name: str = Path(pattern=r"^[a-z0-9-]{1,60}\.woff2$")):
+    if name not in FONT_FILES:
+        raise HTTPException(404, "No such font")
+    return FileResponse(STATIC / "fonts" / name, media_type="font/woff2",
+                        headers={"Cache-Control": "public, max-age=604800"})
+
+
+@app.get("/theme.js")
+def theme_js():
+    return FileResponse(STATIC / "theme.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/icons/{name}")

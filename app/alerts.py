@@ -21,6 +21,7 @@ DEFAULT_SETTINGS = {
     "chatty_factor": 5,             # x normal hourly volume
     "chatty_min_per_hour": 600,     # ignore devices quieter than this
     "auto_link_private": False,     # link private-address devices to known ones without asking
+    "paused_until": 0,              # alerts paused (held like quiet hours) until this time
 }
 CHANNEL_CHOICES = ("none", "phone", "email", "both")
 
@@ -45,6 +46,9 @@ def validate_time(value):
 
 
 def in_quiet_hours(settings, now=None):
+    """Quiet hours, or a pause someone started from the dashboard: hold non-critical alerts."""
+    if (settings.get("paused_until") or 0) > (now or time.time()):
+        return True
     if not settings.get("quiet_enabled"):
         return False
     lt = time.localtime(now or time.time())

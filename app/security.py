@@ -15,12 +15,13 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 # Health check, public certificate, and the sign-in page itself.
 PUBLIC_PATHS = {"/healthz", "/netwatch.crt", "/login", "/api/auth/login", "/api/auth/options",
                 "/api/auth/oidc/start", "/api/auth/oidc/callback",
-                "/manifest.webmanifest", "/sw.js"}       # the app's manifest and service worker (no data in them)
-PUBLIC_PREFIXES = ("/icons/",)
+                "/manifest.webmanifest", "/sw.js",       # the app's manifest and service worker (no data in them)
+                "/theme.js"}                             # theme colors, so the sign-in page matches
+PUBLIC_PREFIXES = ("/icons/", "/fonts/")
 # Only the health check and certificate download skip the Host allow-list.
 HOST_EXEMPT = {"/healthz", "/netwatch.crt"}
 # Read-only accounts may still sign out and change their own password.
-VIEWER_WRITE_PATHS = {"/api/auth/logout", "/api/auth/password"}
+VIEWER_WRITE_PATHS = {"/api/auth/logout", "/api/auth/password", "/api/prefs"}
 # Only admins may see these, even read-only.
 ADMIN_ONLY_PREFIXES = ("/api/users", "/api/tokens", "/api/export/backup", "/api/alert-channels", "/api/alert-rules",
                        "/api/links")
